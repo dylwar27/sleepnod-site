@@ -1,0 +1,749 @@
+---
+import Base from '../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { getVimeoMeta } from '../lib/vimeo';
+import { withBase } from '../lib/url';
+
+// Admin page: visual catalog review + CSV round-trip (download → edit → upload → zip of .md)
+//
+// Scope: covers every editable frontmatter field of `works` except gallery (gallery is
+// preserved across the round-trip but not column-exposed, since per-image caption data
+// is awkward in a flat CSV). Body markdown is also preserved across round-trip.
+//
+// Security posture: cosmetic passphrase gate. The Works data is embedded in the page's
+// HTML and visible via view-source regardless of whether the gate is solved. The real
+// protection is that /admin isn't linked from the public site and robots.txt Disallow
+// keeps it out of search. If you need real auth, retire this page for Keystatic.
+//
+// Keystatic migration: when Phase 2 lands, Keystatic's collection schema should mirror
+// the one at src/content/config.ts exactly. Everything Keystatic needs lives in the .md
+// files already; this admin page can be deleted with no data loss.
+
+const works = await getCollection('works');
+
+type AdminRow = {
+  slug: string;
+  file: string;
+  title: string;
+  preservedTitle: string;
+  year: string;
+  medium: string;
+  role: string;
+  venue: string;
+  tags: string[];
+  section: string;
+  summary: string;
+  featuredImage: string;
+  vimeoId: string;
+  vimeoPrivacy: string;
+  status: string;
+  featuredOrder: number | '';
+  archivePath: string;
+  rightsNote: string;
+  substackUrl: string;
+  gallery: Array<{ src: string; caption?: string }>;
+  body: string;
+  thumbnail: string | null;
+};
+
+const rows: AdminRow[] = await Promise.all(
+  works.map(async (w): Promise<AdminRow> => {
+    const vimeoPoster = w.data.vimeoId ? (await getVimeoMeta(w.data.vimeoId))?.thumbnail : null;
+    return {
+      slug: w.slug,
+      file: `src/content/works/${w.id}`,
+      title: w.data.title,
+      preservedTitle: w.data.preservedTitle ?? '',
+      year: w.data.year,
+      medium: w.data.medium,
+      role: w.data.role,
+      venue: w.data.venue ?? '',
+      tags: w.data.tags,
+      section: w.data.section ?? '',
+      summary: w.data.summary ?? '',
+      featuredImage: w.data.featuredImage ?? '',
+      vimeoId: w.data.vimeoId ?? '',
+      vimeoPrivacy: w.data.vimeoPrivacy,
+      status: w.data.status,
+      featuredOrder: w.data.featuredOrder ?? '',
+      archivePath: w.data.archivePath ?? '',
+      rightsNote: w.data.rightsNote ?? '',
+      substackUrl: w.data.substackUrl ?? '',
+      gallery: w.data.gallery,
+      body: w.body ?? '',
+      thumbnail: w.data.featuredImage || vimeoPoster || null,
+    };
+  })
+);
+
+rows.sort((a, b) => b.year.localeCompare(a.year));
+
+const stats = {
+  total: rows.length,
+  featured: rows.filter((r) => r.status === 'featured').length,
+  published: rows.filter((r) => r.status === 'published').length,
+  draft: rows.filter((r) => r.status === 'draft').length,
+};
+
+const mediums = Array.from(new Set(rows.map((r) => r.medium))).sort();
+const placeholder = withBase('/media/placeholder.svg');
+---
+
+<Base title="SLEEP NOD Admin">
+  <div id="gate" class="admin-gate">
+    <div class="admin-gate-box">
+      <h1>SLEEP NOD Admin</h1>
+      <p>Passphrase.</p>
+      <input type="password" id="gate-pw" autocomplete="off" autofocus />
+      <button id="gate-btn" type="button">Enter</button>
+    </div>
+  </div>
+
+  <div id="admin" class="admin-panel" style="display:none;">
+    <header class="admin-header">
+      <h1>Works catalog</h1>
+      <div class="admin-stats">
+        {stats.total} total · {stats.featured} featured · {stats.published} published · {stats.draft} draft
+      </div>
+    </header>
+
+    <div class="admin-toolbar">
+      <input id="search" placeholder="Search title, slug, tags, summary…" class="admin-input" />
+      <select id="filter-status" class="admin-select">
+        <option value="all">All statuses</option>
+        <option value="featured">Featured</option>
+        <option value="published">Published</option>
+        <option value="draft">Draft</option>
+      </select>
+      <select id="filter-medium" class="admin-select">
+        <option value="all">All mediums</option>
+        {mediums.map((m) => <option value={m}>{m}</option>)}
+      </select>
+      <button id="export-csv" class="admin-btn" type="button">Download CSV</button>
+      <label class="admin-btn admin-btn--outline">
+        Upload CSV
+        <input type="file" id="import-csv" accept=".csv" hidden />
+      </label>
+      <span id="row-count" class="admin-count"></span>
+    </div>
+
+    <div id="import-result" class="admin-import-result" hidden></div>
+
+    <div class="admin-table-wrap">
+      <table class="admin-table" id="data-table">
+        <thead>
+          <tr>
+            <th class="col-thumb"></th>
+            <th class="sortable" data-col="status">Status</th>
+            <th class="sortable col-title" data-col="title">Title · slug</th>
+            <th class="sortable" data-col="year">Year</th>
+            <th class="sortable" data-col="medium">Medium</th>
+            <th class="col-tags">Tags</th>
+            <th class="col-summary">Summary</th>
+            <th class="col-flags">Flags</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <p class="admin-note">
+      CSV round-trip: <em>Download CSV</em> → edit in Sheets/Excel → <em>Upload CSV</em> →
+      a zip of updated <code>.md</code> files downloads. Drop them into
+      <code>src/content/works/</code> (overwriting), then <code>git add</code> + commit + push.
+      <code>gallery</code> and the markdown body are preserved across the round-trip, so
+      CSV edits never wipe them.
+    </p>
+  </div>
+
+  <script id="admin-data" type="application/json" set:html={JSON.stringify(rows)}></script>
+  <script id="admin-placeholder" type="text/plain" set:html={placeholder}></script>
+
+  <style>
+    .admin-gate {
+      min-height: 70vh;
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+    }
+    .admin-gate-box {
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+    }
+    .admin-gate-box h1 {
+      font-family: var(--serif);
+      font-size: 2rem;
+      margin: 0 0 0.25rem;
+    }
+    .admin-gate-box p {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.8125rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 0 0 1.5rem;
+    }
+    .admin-gate-box input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-family: var(--mono);
+      font-size: 1rem;
+      border: 1px solid var(--rule);
+      background: transparent;
+      color: var(--ink);
+      margin-bottom: 0.75rem;
+    }
+    .admin-gate-box input:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
+    .admin-gate-box button {
+      width: 100%;
+      padding: 0.75rem;
+      font-family: var(--mono);
+      font-size: 0.8125rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: var(--ink);
+      color: var(--bg);
+      border: 0;
+      cursor: pointer;
+    }
+    .admin-gate-box button:hover { opacity: 0.85; }
+
+    .admin-panel {
+      padding: 1.5rem clamp(1rem, 3vw, 2rem) 6rem;
+      max-width: 100%;
+    }
+    .admin-header { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--rule); }
+    .admin-header h1 { font-family: var(--serif); font-size: 1.75rem; margin: 0 0 0.25rem; }
+    .admin-stats {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .admin-toolbar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: var(--bg);
+      padding: 0.75rem 0;
+      margin-bottom: 0.5rem;
+    }
+    .admin-input, .admin-select {
+      padding: 0.5rem 0.75rem;
+      font-family: var(--mono);
+      font-size: 0.8125rem;
+      border: 1px solid var(--rule);
+      background: transparent;
+      color: var(--ink);
+    }
+    .admin-input { flex: 1; min-width: 180px; }
+    .admin-btn {
+      padding: 0.5rem 1rem;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: var(--ink);
+      color: var(--bg);
+      border: 0;
+      cursor: pointer;
+    }
+    .admin-btn--outline {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--ink);
+    }
+    .admin-btn:hover { opacity: 0.85; }
+    .admin-count {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .admin-import-result {
+      margin: 1rem 0;
+      padding: 1rem 1.25rem;
+      border: 1px solid var(--rule);
+      background: #fff;
+      font-family: var(--mono);
+      font-size: 0.8125rem;
+      line-height: 1.6;
+    }
+    .admin-import-result ul { margin: 0.5rem 0 1rem; padding-left: 1.25rem; }
+    .admin-import-result code {
+      background: #eceae4;
+      padding: 0 0.25rem;
+      font-size: 0.8125rem;
+    }
+    .admin-import-result a.admin-btn { display: inline-block; text-decoration: none; }
+
+    .admin-table-wrap { overflow-x: auto; }
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 0.8125rem;
+    }
+    .admin-table th, .admin-table td {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--rule);
+      vertical-align: top;
+    }
+    .admin-table th {
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 0.6875rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .admin-table th.sortable { cursor: pointer; user-select: none; }
+    .admin-table th.sortable:hover { color: var(--ink); }
+    .admin-table th.sort-asc::after { content: ' ↑'; }
+    .admin-table th.sort-desc::after { content: ' ↓'; }
+
+    .admin-table .col-thumb { width: 80px; }
+    .admin-table .col-title { min-width: 240px; }
+    .admin-table .col-tags { max-width: 200px; }
+    .admin-table .col-summary { max-width: 260px; }
+    .admin-table .col-flags { white-space: nowrap; }
+
+    .thumb {
+      width: 72px;
+      height: 44px;
+      object-fit: cover;
+      background: #eceae4;
+      display: block;
+    }
+
+    .title-cell strong {
+      font-family: var(--serif);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      display: block;
+      line-height: 1.2;
+    }
+    .title-cell small {
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      font-size: 0.6875rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border: 1px solid currentColor;
+    }
+    .status-pill.featured { color: #a84a2e; }
+    .status-pill.published { color: #2e6a5a; }
+    .status-pill.draft { color: var(--muted); }
+
+    .flag {
+      display: inline-block;
+      padding: 0.125rem 0.375rem;
+      margin-right: 0.25rem;
+      font-size: 0.6875rem;
+      background: #f5ead9;
+      color: #8a5a00;
+      white-space: nowrap;
+    }
+    .flag.ok { background: transparent; color: var(--muted); }
+
+    .truncate {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .admin-note {
+      margin-top: 2rem;
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--rule);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .admin-note code {
+      background: #eceae4;
+      padding: 0 0.25rem;
+    }
+    .admin-note em { font-style: normal; color: var(--ink); }
+  </style>
+
+  <script>
+    import JSZip from 'jszip';
+
+    const HASH = '111db19e5ce5';
+    const STORAGE_KEY = 'sleepnod-admin';
+
+    const DATA: AdminRow[] = JSON.parse(
+      (document.getElementById('admin-data') as HTMLScriptElement).textContent || '[]'
+    );
+    const PLACEHOLDER = (document.getElementById('admin-placeholder') as HTMLScriptElement).textContent || '';
+
+    type AdminRow = {
+      slug: string; file: string; title: string; preservedTitle: string;
+      year: string; medium: string; role: string; venue: string;
+      tags: string[]; section: string; summary: string;
+      featuredImage: string; vimeoId: string; vimeoPrivacy: string;
+      status: string; featuredOrder: number | '';
+      archivePath: string; rightsNote: string; substackUrl: string;
+      gallery: Array<{ src: string; caption?: string }>;
+      body: string; thumbnail: string | null;
+    };
+
+    const gate = document.getElementById('gate') as HTMLDivElement;
+    const admin = document.getElementById('admin') as HTMLDivElement;
+    const pwInput = document.getElementById('gate-pw') as HTMLInputElement;
+    const pwBtn = document.getElementById('gate-btn') as HTMLButtonElement;
+    const searchInput = document.getElementById('search') as HTMLInputElement;
+    const statusSelect = document.getElementById('filter-status') as HTMLSelectElement;
+    const mediumSelect = document.getElementById('filter-medium') as HTMLSelectElement;
+    const rowCount = document.getElementById('row-count') as HTMLSpanElement;
+    const tbody = document.getElementById('table-body') as HTMLTableSectionElement;
+    const importResult = document.getElementById('import-result') as HTMLDivElement;
+
+    let sortCol: keyof AdminRow = 'year';
+    let sortDir: 'asc' | 'desc' = 'desc';
+    let inited = false;
+
+    async function hashPw(pw: string): Promise<string> {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+      return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, HASH.length);
+    }
+
+    async function tryLogin() {
+      const h = await hashPw(pwInput.value.trim().toLowerCase());
+      if (h === HASH) {
+        gate.style.display = 'none';
+        admin.style.display = 'block';
+        sessionStorage.setItem(STORAGE_KEY, '1');
+        init();
+      } else {
+        pwInput.value = '';
+        pwInput.placeholder = 'Wrong passphrase';
+        pwInput.style.borderColor = '#a84a2e';
+      }
+    }
+
+    pwBtn.addEventListener('click', tryLogin);
+    pwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
+
+    if (sessionStorage.getItem(STORAGE_KEY) === '1') {
+      gate.style.display = 'none';
+      admin.style.display = 'block';
+      init();
+    }
+
+    function init() {
+      if (inited) return;
+      inited = true;
+      searchInput.addEventListener('input', renderTable);
+      statusSelect.addEventListener('change', renderTable);
+      mediumSelect.addEventListener('change', renderTable);
+      document.querySelectorAll<HTMLTableCellElement>('.admin-table th.sortable').forEach((th) => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.col as keyof AdminRow;
+          if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+          else { sortCol = col; sortDir = col === 'year' ? 'desc' : 'asc'; }
+          renderTable();
+        });
+      });
+      document.getElementById('export-csv')!.addEventListener('click', exportCsv);
+      document.getElementById('import-csv')!.addEventListener('change', importCsv);
+      renderTable();
+    }
+
+    function esc(s: unknown): string {
+      return String(s ?? '').replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!
+      ));
+    }
+
+    function flagsFor(r: AdminRow): string {
+      const flags: string[] = [];
+      if (!r.summary) flags.push('<span class="flag">no summary</span>');
+      if (!r.vimeoId && !r.featuredImage) flags.push('<span class="flag">no media</span>');
+      if (!r.role) flags.push('<span class="flag">no role</span>');
+      if (r.status !== 'draft' && !r.summary) flags.push('<span class="flag">publish-blocked</span>');
+      return flags.length > 0 ? flags.join('') : '<span class="flag ok">—</span>';
+    }
+
+    function filtered(): AdminRow[] {
+      const q = searchInput.value.trim().toLowerCase();
+      const s = statusSelect.value;
+      const m = mediumSelect.value;
+      return DATA.filter((r) => {
+        if (s !== 'all' && r.status !== s) return false;
+        if (m !== 'all' && r.medium !== m) return false;
+        if (q) {
+          const hay = [r.title, r.slug, r.summary, r.role, r.venue, r.section, r.tags.join(' ')]
+            .filter(Boolean).join(' ').toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function sorted(rows: AdminRow[]): AdminRow[] {
+      return [...rows].sort((a, b) => {
+        const va = a[sortCol];
+        const vb = b[sortCol];
+        const sa = Array.isArray(va) ? va.join(',') : String(va ?? '');
+        const sb = Array.isArray(vb) ? vb.join(',') : String(vb ?? '');
+        const cmp = sa.localeCompare(sb);
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+    }
+
+    function renderTable() {
+      const rows = sorted(filtered());
+      rowCount.textContent = `${rows.length} of ${DATA.length}`;
+
+      document.querySelectorAll('.admin-table th').forEach((th) => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if ((th as HTMLElement).dataset.col === sortCol) {
+          th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+      });
+
+      tbody.innerHTML = rows.map((r) => `
+        <tr>
+          <td class="col-thumb"><img class="thumb" src="${esc(r.thumbnail || PLACEHOLDER)}" alt="" loading="lazy"/></td>
+          <td><span class="status-pill ${esc(r.status)}">${esc(r.status)}</span></td>
+          <td class="col-title title-cell">
+            <strong>${esc(r.preservedTitle || r.title)}</strong>
+            <small>${esc(r.slug)}</small>
+          </td>
+          <td>${esc(r.year.slice(0, 4))}</td>
+          <td>${esc(r.medium)}</td>
+          <td class="col-tags truncate" title="${esc(r.tags.join(', '))}">${esc(r.tags.join(', '))}</td>
+          <td class="col-summary truncate" title="${esc(r.summary)}">${esc(r.summary || '—')}</td>
+          <td class="col-flags">${flagsFor(r)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // --- CSV columns and helpers ---
+
+    const CSV_COLS: (keyof AdminRow)[] = [
+      'slug', 'title', 'preservedTitle', 'year', 'medium', 'role', 'venue',
+      'tags', 'section', 'summary', 'featuredImage', 'vimeoId', 'vimeoPrivacy',
+      'status', 'featuredOrder', 'archivePath', 'rightsNote', 'substackUrl',
+    ];
+
+    function csvEscape(v: unknown): string {
+      const s = Array.isArray(v) ? v.join('|') : String(v ?? '');
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }
+
+    function exportCsv() {
+      const rows = sorted(filtered());
+      const header = CSV_COLS.join(',');
+      const lines = rows.map((r) => CSV_COLS.map((c) => csvEscape(r[c])).join(','));
+      const csv = [header, ...lines].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sleepnod-works-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function parseCsv(text: string): string[][] {
+      const out: string[][] = [];
+      let row: string[] = [];
+      let cell = '';
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQuotes) {
+          if (c === '"') {
+            if (text[i + 1] === '"') { cell += '"'; i++; }
+            else inQuotes = false;
+          } else cell += c;
+        } else {
+          if (c === '"') inQuotes = true;
+          else if (c === ',') { row.push(cell); cell = ''; }
+          else if (c === '\n' || c === '\r') {
+            if (c === '\r' && text[i + 1] === '\n') i++;
+            row.push(cell); cell = '';
+            if (row.length > 1 || row[0] !== '') out.push(row);
+            row = [];
+          } else cell += c;
+        }
+      }
+      if (cell !== '' || row.length > 0) { row.push(cell); out.push(row); }
+      return out;
+    }
+
+    // --- YAML frontmatter emit (limited to shapes this schema uses) ---
+
+    const FRONTMATTER_ORDER: string[] = [
+      'title', 'preservedTitle', 'year', 'medium', 'role', 'venue',
+      'tags', 'section', 'summary', 'featuredImage', 'gallery',
+      'vimeoId', 'vimeoPrivacy', 'status', 'featuredOrder',
+      'substackUrl', 'archivePath', 'rightsNote',
+    ];
+
+    function yamlScalar(v: unknown): string {
+      if (typeof v === 'number') return String(v);
+      if (typeof v === 'boolean') return String(v);
+      const s = String(v ?? '');
+      if (s === '') return "''";
+      if (/^(true|false|null|yes|no|on|off)$/i.test(s)) return `'${s}'`;
+      if (/^-?\d+(\.\d+)?$/.test(s)) return `'${s}'`;
+      if (/[:#&*!|>'"%@`,\[\]{}\n]/.test(s) || /^\s|\s$/.test(s)) {
+        return `'${s.replace(/'/g, "''")}'`;
+      }
+      return s;
+    }
+
+    function emitFrontmatter(row: Record<string, unknown>): string {
+      const lines = ['---'];
+      for (const key of FRONTMATTER_ORDER) {
+        const val = row[key];
+        if (val === undefined || val === null || val === '') continue;
+        if (key === 'gallery') {
+          const arr = val as Array<{ src: string; caption?: string }>;
+          if (!Array.isArray(arr) || arr.length === 0) continue;
+          lines.push('gallery:');
+          for (const item of arr) {
+            lines.push(`  - src: ${yamlScalar(item.src)}`);
+            if (item.caption) lines.push(`    caption: ${yamlScalar(item.caption)}`);
+          }
+          continue;
+        }
+        if (Array.isArray(val)) {
+          if (val.length === 0) continue;
+          lines.push(`${key}:`);
+          for (const item of val) lines.push(`  - ${yamlScalar(item)}`);
+          continue;
+        }
+        lines.push(`${key}: ${yamlScalar(val)}`);
+      }
+      lines.push('---');
+      return lines.join('\n');
+    }
+
+    function emitMarkdown(row: AdminRow): string {
+      return `${emitFrontmatter(row as unknown as Record<string, unknown>)}\n\n${row.body ?? ''}\n`;
+    }
+
+    async function importCsv(e: Event) {
+      const input = e.target as HTMLInputElement;
+      const file = input.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      input.value = '';
+
+      const parsed = parseCsv(text);
+      if (parsed.length === 0) { showImportError('Empty CSV.'); return; }
+      const [headers, ...dataRows] = parsed;
+      if (!headers.includes('slug')) { showImportError('CSV must include a `slug` column.'); return; }
+
+      const origBySlug = new Map(DATA.map((d) => [d.slug, d]));
+      const updates: Array<{ slug: string; merged: AdminRow; changes: string[] }> = [];
+      const additions: Array<{ slug: string; merged: AdminRow }> = [];
+
+      for (const cells of dataRows) {
+        if (cells.every((c) => !c)) continue;
+        const row: Record<string, string> = {};
+        headers.forEach((h, i) => { row[h] = cells[i] ?? ''; });
+        if (!row.slug) continue;
+
+        const editable: Partial<AdminRow> = {};
+        for (const col of CSV_COLS) {
+          if (!(col in row)) continue;
+          const raw = row[col];
+          if (col === 'tags') {
+            editable.tags = raw.split(/[|,;]/).map((t) => t.trim()).filter(Boolean);
+          } else if (col === 'featuredOrder') {
+            editable.featuredOrder = raw === '' ? '' : Number(raw);
+          } else {
+            (editable as Record<string, unknown>)[col] = raw;
+          }
+        }
+
+        const orig = origBySlug.get(row.slug);
+        if (orig) {
+          const merged: AdminRow = { ...orig, ...(editable as AdminRow) };
+          const changes: string[] = [];
+          for (const k of Object.keys(editable) as (keyof AdminRow)[]) {
+            if (JSON.stringify(merged[k]) !== JSON.stringify(orig[k])) changes.push(k);
+          }
+          if (changes.length > 0) updates.push({ slug: row.slug, merged, changes });
+        } else {
+          const merged: AdminRow = {
+            slug: row.slug,
+            file: `src/content/works/${row.slug}.md`,
+            title: '', preservedTitle: '', year: '', medium: 'other',
+            role: '', venue: '', tags: [], section: '', summary: '',
+            featuredImage: '', vimeoId: '', vimeoPrivacy: 'public',
+            status: 'draft', featuredOrder: '', archivePath: '',
+            rightsNote: '', substackUrl: '', gallery: [], body: '',
+            thumbnail: null,
+            ...(editable as AdminRow),
+          };
+          additions.push({ slug: row.slug, merged });
+        }
+      }
+
+      if (updates.length === 0 && additions.length === 0) {
+        showImportInfo('CSV parsed, no changes detected.');
+        return;
+      }
+
+      const zip = new JSZip();
+      [...updates, ...additions].forEach(({ slug, merged }) => {
+        zip.file(`${slug}.md`, emitMarkdown(merged));
+      });
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+
+      importResult.hidden = false;
+      importResult.innerHTML = `
+        <strong>Import preview</strong>
+        <ul>
+          <li>${updates.length} updated</li>
+          <li>${additions.length} added</li>
+        </ul>
+        ${updates.length > 0 ? `<strong>Updated slugs</strong><ul>${
+          updates.map((u) => `<li>${esc(u.slug)} — ${u.changes.map(esc).join(', ')}</li>`).join('')
+        }</ul>` : ''}
+        ${additions.length > 0 ? `<strong>Added slugs</strong><ul>${
+          additions.map((a) => `<li>${esc(a.slug)}</li>`).join('')
+        }</ul>` : ''}
+        <a class="admin-btn" href="${url}" download="sleepnod-works-${new Date().toISOString().slice(0, 10)}.zip">Download .md zip</a>
+        <p style="margin-top: 0.75rem;">
+          Unzip into <code>src/content/works/</code> (overwriting), then
+          <code>git add src/content/works && git commit -m "update works" && git push</code>.
+          Deletions are intentionally not handled — remove a Work by deleting its <code>.md</code> file and committing.
+        </p>
+      `;
+    }
+
+    function showImportInfo(msg: string) {
+      importResult.hidden = false;
+      importResult.innerHTML = `<strong>${esc(msg)}</strong>`;
+    }
+    function showImportError(msg: string) {
+      importResult.hidden = false;
+      importResult.innerHTML = `<strong style="color:#a84a2e;">${esc(msg)}</strong>`;
+    }
+  </script>
+</Base>

@@ -112,9 +112,23 @@ When a Work has no `featuredImage`, the Vimeo poster is used. When neither exist
 
 ---
 
+## Admin page (`/admin`)
+
+Unlisted route at [src/pages/admin.astro](src/pages/admin.astro:1). Cosmetic passphrase gate (sessionStorage + SHA-256 12-char prefix; default passphrase is `sleepnod`; change by updating the `HASH` constant with `echo -n 'your-phrase' | shasum -a 256 | cut -c1-12`). The page content is in the HTML regardless of the gate — the real protection is unlisted URL + `robots.txt` Disallow.
+
+Supports:
+
+- Visual table of every Work (featured + published + draft), with thumbnail, status pill, flags for missing summary/media/role, sort by title/year/medium/status, filter by status/medium, text search.
+- **Download CSV** — full frontmatter of the filtered rows (minus `gallery` and body). Filename `sleepnod-works-YYYY-MM-DD.csv`.
+- **Upload CSV** — parses, diffs against current state, emits a zip of updated `.md` files. `gallery` and body are preserved from the original files across the round-trip. Deletions are intentionally not handled (delete a `.md` file manually to remove a Work). Drop the zip into `src/content/works/`, commit, push.
+
+CSV columns are the Keystatic-compatible editable fields. When Keystatic lands in Phase 2, delete this page — the same `.md` files become its backing store with zero migration.
+
+---
+
 ## Phased roadmap
 
-- **Phase 1 (current):** markdown-first scaffold. Hand-write 5–10 featured Works. Deployed to GitHub Pages at `https://dylwar27.github.io/sleepnod-site/` with `robots.txt` Disallow while WIP.
+- **Phase 1 (current):** markdown-first scaffold. Hand-write 5–10 featured Works. Deployed to GitHub Pages at `https://dylwar27.github.io/sleepnod-site/` with `robots.txt` Disallow while WIP. `/admin` page is live for CSV-based catalog review.
 - **Phase 2:** add Keystatic studio for backfill. Requires GitHub App setup — one-time friction, then editing is terminal-free.
 - **Phase 3:** write `scripts/import-from-xlsx.mjs`, one-shot import of published/featured Works from the xlsx. Archive the script after a single `--write` run; xlsx stops being authoritative.
 - **Phase 4:** Pagefind search, Vimeo metadata refresh with account access, custom domain swap, `robots.txt` lift.
