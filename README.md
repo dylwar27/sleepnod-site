@@ -7,7 +7,9 @@ Video archive: [vimeo.com/dfw](https://vimeo.com/dfw)
 
 ## Stack
 
-Astro 4 · content collections · Vercel · Vimeo oEmbed. No CMS in Phase 1; Keystatic is added in Phase 2.
+Astro 4 · content collections · GitHub Pages · Vimeo oEmbed. No CMS in Phase 1; Keystatic is added in Phase 2.
+
+Live (WIP, `robots.txt` Disallow): https://dylwar27.github.io/sleepnod-site/
 
 ## Develop
 
@@ -45,7 +47,7 @@ Body copy in markdown.
 
 ## Phase roadmap
 
-- **Phase 1** — hand-write 5–10 featured Works, ship to Vercel under an unguessable preview URL.
+- **Phase 1** — hand-write 5–10 featured Works, ship to GitHub Pages with `robots.txt` Disallow.
 - **Phase 2** — add Keystatic for a browser-based editing UI.
 - **Phase 3** — one-shot import from `SleepNod_Catalog_of_Works.xlsx`, then archive the import script.
 - **Phase 4** — Pagefind search, Vimeo metadata refresh, custom domain.

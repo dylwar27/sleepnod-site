@@ -1,6 +1,7 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 import { getVimeoMeta } from '../lib/vimeo';
+import { withBase } from '../lib/url';
 
 export interface Props {
   work: CollectionEntry<'works'>;
@@ -10,10 +11,10 @@ const { work } = Astro.props;
 const { data } = work;
 const year = data.year.slice(0, 4);
 const vimeoPoster = data.vimeoId ? (await getVimeoMeta(data.vimeoId))?.thumbnail : null;
-const cover = data.featuredImage || vimeoPoster || '/media/placeholder.svg';
+const cover = withBase(data.featuredImage || vimeoPoster || '/media/placeholder.svg');
 const displayTitle = data.preservedTitle || data.title;
 ---
-<a class="work-card" href={`/works/${work.slug}/`}>
+<a class="work-card" href={withBase(`/works/${work.slug}/`)}>
   <figure>
     <img src={cover} alt={data.title} loading="lazy" />
   </figure>

@@ -1,15 +1,16 @@
 ---
 import { site } from '../config/site';
+import { withBase } from '../lib/url';
 ---
 <header class="site-header">
   <div class="container">
-    <a class="wordmark" href="/" aria-label={site.wordmark}>{site.wordmark}</a>
+    <a class="wordmark" href={withBase('/')} aria-label={site.wordmark}>{site.wordmark}</a>
     <nav class="site-nav" aria-label="Primary">
       <ul>
         {site.nav.map((item) => (
           <li>
             <a
-              href={item.href}
+              href={item.external ? item.href : withBase(item.href)}
               {...item.external ? { target: '_blank', rel: 'noopener' } : {}}
             >
               {item.label}

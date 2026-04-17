@@ -27,7 +27,7 @@ The goal for v1 is 5–10 featured Works live; everything else gets backfilled o
 ## Stack
 
 - **Astro 4** (content collections, vanilla JS where needed, no framework)
-- **Vercel** hosting, free tier, auto-deploy on push
+- **GitHub Pages** hosting during Phase 1 (same pattern as CRFW: `base: '/sleepnod-site'`, subpath URLs handled via `withBase()` at [src/lib/url.ts](src/lib/url.ts:1)). Swap to a custom domain when ready by setting `base: '/'`, updating `site`, and adding `public/CNAME`.
 - **Vimeo oEmbed** at build time — cached to `.cache/vimeo/` (gitignored)
 - **Keystatic** will be added in Phase 2 for a non-terminal editing UI; not in v1
 - No Cloudinary, no CDN. Images live in `public/media/works/<slug>/` and are committed to git.
@@ -114,7 +114,7 @@ When a Work has no `featuredImage`, the Vimeo poster is used. When neither exist
 
 ## Phased roadmap
 
-- **Phase 1 (current):** markdown-first scaffold. Hand-write 5–10 featured Works. Ship to Vercel under an unguessable preview URL with `robots.txt` Disallow.
+- **Phase 1 (current):** markdown-first scaffold. Hand-write 5–10 featured Works. Deployed to GitHub Pages at `https://dylwar27.github.io/sleepnod-site/` with `robots.txt` Disallow while WIP.
 - **Phase 2:** add Keystatic studio for backfill. Requires GitHub App setup — one-time friction, then editing is terminal-free.
 - **Phase 3:** write `scripts/import-from-xlsx.mjs`, one-shot import of published/featured Works from the xlsx. Archive the script after a single `--write` run; xlsx stops being authoritative.
 - **Phase 4:** Pagefind search, Vimeo metadata refresh with account access, custom domain swap, `robots.txt` lift.

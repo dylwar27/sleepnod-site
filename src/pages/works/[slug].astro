@@ -5,6 +5,7 @@ import VimeoEmbed from '../../components/VimeoEmbed.astro';
 import Gallery from '../../components/Gallery.astro';
 import WorkCard from '../../components/WorkCard.astro';
 import { getVimeoMeta } from '../../lib/vimeo';
+import { withBase } from '../../lib/url';
 
 export async function getStaticPaths() {
   const works = await getCollection('works', ({ data }) => data.status !== 'draft');
@@ -32,8 +33,9 @@ const related = all
   .map(({ w }) => w);
 
 const collabTags = data.tags.filter((t) => t.startsWith('with-'));
-const heroImage = data.featuredImage
+const rawHero = data.featuredImage
   || (data.vimeoId ? (await getVimeoMeta(data.vimeoId))?.thumbnail : null);
+const heroImage = rawHero ? withBase(rawHero) : null;
 ---
 <Base title={`${data.title} — SLEEP NOD`} description={data.summary}>
   <article class="container work">
@@ -66,7 +68,7 @@ const heroImage = data.featuredImage
         <h2>Collaborators</h2>
         <ul>
           {collabTags.map((tag) => (
-            <li><a href={`/with/${tag.replace(/^with-/, '')}/`}>{tag.replace(/^with-/, '').replace(/-/g, ' ')}</a></li>
+            <li><a href={withBase(`/with/${tag.replace(/^with-/, '')}/`)}>{tag.replace(/^with-/, '').replace(/-/g, ' ')}</a></li>
           ))}
         </ul>
       </aside>

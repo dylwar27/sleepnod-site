@@ -1,4 +1,6 @@
 ---
+import { withBase } from '../lib/url';
+
 export interface Props {
   items: Array<{ src: string; caption?: string }>;
 }
@@ -9,7 +11,7 @@ const { items } = Astro.props;
   <div class="gallery">
     {items.map((item) => (
       <figure>
-        <img src={item.src} alt={item.caption || ''} loading="lazy" />
+        <img src={withBase(item.src)} alt={item.caption || ''} loading="lazy" />
         {item.caption && <figcaption>{item.caption}</figcaption>}
       </figure>
     ))}
