@@ -1,0 +1,17 @@
+---
+export interface Props {
+  items: Array<{ src: string; caption?: string }>;
+}
+
+const { items } = Astro.props;
+---
+{items.length > 0 && (
+  <div class="gallery">
+    {items.map((item) => (
+      <figure>
+        <img src={item.src} alt={item.caption || ''} loading="lazy" />
+        {item.caption && <figcaption>{item.caption}</figcaption>}
+      </figure>
+    ))}
+  </div>
+)}

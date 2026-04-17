@@ -1,0 +1,61 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import WorkCard from '../../components/WorkCard.astro';
+
+const works = await getCollection('works', ({ data }) => data.status !== 'draft');
+works.sort((a, b) => b.data.year.localeCompare(a.data.year));
+
+const mediums = Array.from(new Set(works.map((w) => w.data.medium))).sort();
+const entries = works.map((w) => ({
+  slug: w.slug,
+  medium: w.data.medium,
+  year: w.data.year.slice(0, 4),
+}));
+---
+<Base title="Works — SLEEP NOD">
+  <section class="container">
+    <div style="padding-block: 3rem 1rem;">
+      <div class="section-label">Works</div>
+      <h1 style="font-family: var(--serif); font-weight: 700; font-size: clamp(2.25rem, 5vw, 3.5rem); line-height: 1.05; margin: 0;">All works</h1>
+    </div>
+
+    <div class="filters" id="filters">
+      <button data-medium="all" aria-pressed="true">All</button>
+      {mediums.map((m) => <button data-medium={m} aria-pressed="false">{m}</button>)}
+      <span class="count" id="count">{works.length} works</span>
+    </div>
+
+    <div class="work-grid work-grid--dense" id="grid">
+      {works.map((work) => (
+        <div data-medium={work.data.medium}>
+          <WorkCard work={work} />
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <script is:inline define:vars={{ entries }}>
+    const grid = document.getElementById('grid');
+    const count = document.getElementById('count');
+    const buttons = document.querySelectorAll('#filters button');
+    const total = entries.length;
+
+    function apply(medium) {
+      let visible = 0;
+      grid.querySelectorAll('[data-medium]').forEach((el) => {
+        const show = medium === 'all' || el.dataset.medium === medium;
+        el.style.display = show ? '' : 'none';
+        if (show) visible += 1;
+      });
+      count.textContent = medium === 'all'
+        ? `${total} works`
+        : `${visible} of ${total}`;
+      buttons.forEach((b) => {
+        b.setAttribute('aria-pressed', b.dataset.medium === medium ? 'true' : 'false');
+      });
+    }
+
+    buttons.forEach((b) => b.addEventListener('click', () => apply(b.dataset.medium)));
+  </script>
+</Base>

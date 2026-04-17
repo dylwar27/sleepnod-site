@@ -1,0 +1,24 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { getVimeoMeta } from '../lib/vimeo';
+
+export interface Props {
+  work: CollectionEntry<'works'>;
+}
+
+const { work } = Astro.props;
+const { data } = work;
+const year = data.year.slice(0, 4);
+const vimeoPoster = data.vimeoId ? (await getVimeoMeta(data.vimeoId))?.thumbnail : null;
+const cover = data.featuredImage || vimeoPoster || '/media/placeholder.svg';
+const displayTitle = data.preservedTitle || data.title;
+---
+<a class="work-card" href={`/works/${work.slug}/`}>
+  <figure>
+    <img src={cover} alt={data.title} loading="lazy" />
+  </figure>
+  <div>
+    <h3>{displayTitle}</h3>
+    <p class="meta">{data.medium} · {year}{data.venue ? ` · ${data.venue}` : ''}</p>
+  </div>
+</a>

@@ -1,0 +1,38 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import WorkCard from '../../components/WorkCard.astro';
+
+export async function getStaticPaths() {
+  const works = await getCollection('works', ({ data }) => data.status !== 'draft');
+  const slugs = new Set<string>();
+  works.forEach((w) => {
+    w.data.tags
+      .filter((t) => t.startsWith('with-'))
+      .forEach((t) => slugs.add(t.replace(/^with-/, '')));
+  });
+  return Array.from(slugs).map((slug) => ({
+    params: { slug },
+    props: {
+      slug,
+      works: works
+        .filter((w) => w.data.tags.includes(`with-${slug}`))
+        .sort((a, b) => b.data.year.localeCompare(a.data.year)),
+    },
+  }));
+}
+
+const { slug, works } = Astro.props;
+const name = slug.replace(/-/g, ' ');
+---
+<Base title={`With ${name} — SLEEP NOD`}>
+  <section class="container" style="padding-block: 3rem 2rem;">
+    <div class="section-label">Collaborator</div>
+    <h1 style="font-family: var(--serif); font-weight: 700; font-size: clamp(2.25rem, 5vw, 3.5rem); line-height: 1.05; margin: 0; text-transform: capitalize;">With {name}</h1>
+  </section>
+  <section class="container">
+    <div class="work-grid work-grid--dense">
+      {works.map((w) => <WorkCard work={w} />)}
+    </div>
+  </section>
+</Base>

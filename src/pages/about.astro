@@ -1,0 +1,26 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../config/site';
+---
+<Base title="About — SLEEP NOD" description="About Dylan Ward / SLEEP NOD.">
+  <article class="container about">
+    <h1>About</h1>
+    <p>
+      Dylan Ward (b. 1986, Atlanta) is an artist, producer, and writer working
+      across choreography, sound design, film, and live events. Working as
+      <strong>SLEEP NOD</strong> in Seattle (2010–2018), Dylan built a body of
+      dance, sound, and performance work at Base Arts Space, Velocity Dance
+      Center, On the Boards, Men in Dance, Bridge Project, and Gay City Arts.
+    </p>
+    <p>
+      That practice continued into a New York chapter (GreenSpace, Anima
+      Productions, Future Colossal) and broader producing work through 2023,
+      and now resumes from San Francisco.
+    </p>
+    <p>
+      Writing lives on <a href={site.social.substack} target="_blank" rel="noopener">Substack</a>.
+      Video archive is on <a href={site.social.vimeo} target="_blank" rel="noopener">Vimeo</a>.
+      For commissions or correspondence, <a href={`mailto:${site.social.email}`}>email</a>.
+    </p>
+  </article>
+</Base>

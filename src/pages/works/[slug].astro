@@ -1,0 +1,91 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import VimeoEmbed from '../../components/VimeoEmbed.astro';
+import Gallery from '../../components/Gallery.astro';
+import WorkCard from '../../components/WorkCard.astro';
+import { getVimeoMeta } from '../../lib/vimeo';
+
+export async function getStaticPaths() {
+  const works = await getCollection('works', ({ data }) => data.status !== 'draft');
+  return works.map((work) => ({
+    params: { slug: work.slug },
+    props: { work },
+  }));
+}
+
+const { work } = Astro.props;
+const { Content } = await work.render();
+const { data } = work;
+const year = data.year.slice(0, 4);
+
+const all = await getCollection('works', ({ data: d }) => d.status !== 'draft');
+const related = all
+  .filter((w) => w.slug !== work.slug)
+  .map((w) => ({
+    w,
+    overlap: w.data.tags.filter((t) => data.tags.includes(t)).length,
+  }))
+  .filter(({ overlap }) => overlap > 0)
+  .sort((a, b) => b.overlap - a.overlap)
+  .slice(0, 3)
+  .map(({ w }) => w);
+
+const collabTags = data.tags.filter((t) => t.startsWith('with-'));
+const heroImage = data.featuredImage
+  || (data.vimeoId ? (await getVimeoMeta(data.vimeoId))?.thumbnail : null);
+---
+<Base title={`${data.title} — SLEEP NOD`} description={data.summary}>
+  <article class="container work">
+    {data.vimeoId ? (
+      <div class="work-hero" style="background: transparent;">
+        <VimeoEmbed vimeoId={data.vimeoId} title={data.title} />
+      </div>
+    ) : heroImage ? (
+      <div class="work-hero">
+        <img src={heroImage} alt={data.title} />
+      </div>
+    ) : null}
+
+    <header>
+      <h1>{data.preservedTitle || data.title}</h1>
+      <p class="meta-line">
+        {data.medium} · {year}{data.venue ? ` · ${data.venue}` : ''}
+      </p>
+      <p class="role">{data.role}</p>
+    </header>
+
+    <div class="body">
+      <Content />
+    </div>
+
+    <Gallery items={data.gallery} />
+
+    {collabTags.length > 0 && (
+      <aside class="collaborators">
+        <h2>Collaborators</h2>
+        <ul>
+          {collabTags.map((tag) => (
+            <li><a href={`/with/${tag.replace(/^with-/, '')}/`}>{tag.replace(/^with-/, '').replace(/-/g, ' ')}</a></li>
+          ))}
+        </ul>
+      </aside>
+    )}
+
+    {data.substackUrl && (
+      <aside>
+        <h2>Further reading</h2>
+        <p><a href={data.substackUrl} target="_blank" rel="noopener">Read on Substack ↗</a></p>
+      </aside>
+    )}
+
+    {related.length > 0 && (
+      <aside class="related">
+        <h2>Related</h2>
+        <div class="work-grid work-grid--dense">
+          {related.map((w) => <WorkCard work={w} />)}
+        </div>
+      </aside>
+    )}
+  </article>
+</Base>

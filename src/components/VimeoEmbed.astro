@@ -1,0 +1,21 @@
+---
+import { getVimeoMeta } from '../lib/vimeo';
+
+export interface Props {
+  vimeoId: string;
+  title?: string;
+}
+
+const { vimeoId, title } = Astro.props;
+const meta = await getVimeoMeta(vimeoId);
+const iframeTitle = title || meta?.title || 'Vimeo video';
+---
+<div class="vimeo-embed">
+  <iframe
+    src={`https://player.vimeo.com/video/${vimeoId}?title=0&byline=0&portrait=0`}
+    title={iframeTitle}
+    allow="autoplay; fullscreen; picture-in-picture"
+    allowfullscreen
+    loading="lazy"
+  ></iframe>
+</div>

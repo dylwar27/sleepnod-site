@@ -1,0 +1,14 @@
+---
+import { site } from '../config/site';
+const year = new Date().getFullYear();
+---
+<footer class="site-footer">
+  <div class="container">
+    <div>© {year} Dylan Ward</div>
+    <div style="display:flex; gap:1.5rem; flex-wrap:wrap;">
+      <a href={site.social.substack} target="_blank" rel="noopener">Substack</a>
+      <a href={site.social.vimeo} target="_blank" rel="noopener">Vimeo</a>
+      <a href={`mailto:${site.social.email}`}>Email</a>
+    </div>
+  </div>
+</footer>

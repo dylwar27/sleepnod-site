@@ -1,0 +1,32 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import WorkCard from '../components/WorkCard.astro';
+import { site } from '../config/site';
+
+const works = await getCollection('works', ({ data }) => data.status === 'featured');
+works.sort((a, b) => {
+  const ao = a.data.featuredOrder ?? 999;
+  const bo = b.data.featuredOrder ?? 999;
+  if (ao !== bo) return ao - bo;
+  return b.data.year.localeCompare(a.data.year);
+});
+---
+<Base>
+  <section class="container hero">
+    <h1>{site.wordmark}</h1>
+    <p class="byline">{site.byline}</p>
+  </section>
+
+  <section class="container">
+    <div class="section-label">Selected Works</div>
+    <div class="work-grid">
+      {works.map((work) => <WorkCard work={work} />)}
+    </div>
+    {works.length === 0 && (
+      <p style="color:var(--muted); font-family: var(--mono); font-size: 0.875rem;">
+        No featured works yet.
+      </p>
+    )}
+  </section>
+</Base>
