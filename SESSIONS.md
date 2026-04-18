@@ -4,6 +4,68 @@ Running log of Claude Code sessions on this repo. Newest first. Each entry is a 
 
 ---
 
+## Session 02 — 2026-04-17 — Phase 3 xlsx import (68 Works)
+
+**Goal:** one-shot migration from `SleepNod_Catalog_of_Works.xlsx` into `src/content/works/*.md`. All imported Works land as drafts; `/admin` becomes the curation gate.
+
+**Done — 1 commit on main (`01031c5`), pushed + deployed:**
+
+**Import script.** [scripts/import-from-xlsx.mjs](scripts/import-from-xlsx.mjs) — 4 modes:
+- `--inspect`: dump column names and row counts for each sheet, no files written
+- `--dry-run` (default): simulate output, print report, write nothing
+- `--write`: emit `.md` files to `src/content/works/`
+- `--only-status=<csv>`: restrict to rows whose Status cell matches one of the given values (e.g. `--only-status=published,featured`)
+
+Key design choices:
+- **All rows import as `status: draft`** — the xlsx Status column was blank for all 68 Works, so the original "import only published/featured" plan would have imported zero. The `--only-status` flag restores that behavior once Dyl populates Status in the sheet.
+- **Tag dedup**: if the xlsx Tags column already has any `with-*` entry, the With column is ignored — prevents `with-petra` and `with-petra-zanki` from both appearing.
+- **Vimeo**: prefers `Primary Vimeo URL` on the Works row; falls back to a join against the `Vimeo Raw` sheet by Work ID.
+- **Gallery**: populated from image-extension entries in the Files sheet matched by Work ID. No external files fetched at import time.
+- **Rights auto-flag**: any Work with a collaborator in the With column gets `rightsNote: "Check rights..."` automatically.
+- **Body**: Notes column → markdown body. Description → `summary` frontmatter.
+- **YAML emitter**: custom `yamlScalar()` + `emitFrontmatter()` (no extra deps; pattern from CRFW's bulk-stub script).
+
+**Schema fix.** `year` and `role` made optional in [src/content/config.ts](src/content/config.ts:1) — several xlsx rows had blank year or role, which broke schema validation. Guards added to all `.astro` files that reference these fields (`?? ''` for year, conditional render for role).
+
+**Result:** 68 new `.md` files in `src/content/works/`. Build: 7 pages (drafts don't generate routes). Admin page shows 69 Works (68 imported + 1 shape-check `no-haiku`).
+
+**State at end of session:**
+- Repo: [dylwar27/sleepnod-site](https://github.com/dylwar27/sleepnod-site)
+- Live: [https://dylwar27.github.io/sleepnod-site/](https://dylwar27.github.io/sleepnod-site/)
+- Works in repo: 69 (68 drafts from xlsx + 1 featured shape-check)
+- Public routes: 7 (homepage, /works, /about, /404, /admin, and `/with/` + `/sections/` routes generated only for published/featured entries — none yet)
+
+**Remaining items:**
+
+Curator work (Dyl) — the content-audit gate before any Work goes draft→published:
+1. **Open `/admin`** — review all 68 imported Works. Flags column shows which have no summary, no media, no role, or are blocked from publishing.
+2. **Fill `summary` on featured candidates** — every Work that goes `status: published` or `featured` needs at minimum: title, year, medium, and a one-sentence summary.
+3. **Promote 4–5 Works to `featured`** (set `status: featured`, assign `featuredOrder: 2–5`) to fill out the homepage grid alongside `no-haiku`.
+4. **Attach media** — most imported Works have no `vimeoId` or `featuredImage`. Vimeo IDs are the most impactful; paste numeric IDs from vimeo.com URLs.
+5. **Resolve `no-haiku` duplicate** — imported `no-haiku-2020.md` is a parallel draft; decide whether to merge it into the shape-check `no-haiku.md` or replace it.
+6. **Populate Status in the xlsx** if re-import is ever needed, so `--only-status` flag works as designed.
+
+Agent-doable next:
+7. **Phase 2: Keystatic** — install `@keystatic/core`, `@keystatic/astro`, `@astrojs/react`; mirror the `works` schema; mount studio at `/keystatic`; GitHub App setup (plan notes this needs a pairing session — GitHub App registration, redirect URLs, Vercel/Pages env vars).
+8. **Phase 4 polish** — Pagefind search (useful now at 69 Works), Vimeo metadata refresh, custom domain, drop `robots.txt` Disallow at launch.
+
+**Open questions:**
+- **`no-haiku` merge**: keep both `.md` files and pick one to be the featured entry, or collapse into one?
+- **Admin gate for more than one user**: current hash-in-source design means changing the passphrase requires a code push. Fine for now; Keystatic auth replaces this entirely in Phase 2.
+
+**Files touched this session:**
+- `scripts/import-from-xlsx.mjs` — new
+- `src/content/config.ts` — year + role optional
+- `src/components/WorkCard.astro`, `src/pages/index.astro`, `src/pages/works/index.astro`, `src/pages/works/[slug].astro`, `src/pages/sections/[slug].astro`, `src/pages/with/[slug].astro`, `src/pages/admin.astro` — optional year/role guards
+- `src/content/works/*.md` — 68 new files (all drafts)
+
+**Environment notes for next session:**
+- Working dir: `~/Desktop/sleepnod-site`
+- `xlsx` is a devDep in package.json — keep until Dyl confirms no re-import needed, then remove
+- Script archive convention: once import is confirmed final, move to `scripts/_archive/`; xlsx stops being authoritative
+
+---
+
 ## Session 01 — 2026-04-16/17 — plan, scaffold, Pages deploy, admin
 
 **Goal:** stand up a public portfolio for Dylan Ward / SLEEP NOD, sibling to the CRFW memorial site but editorially opposite (clean, image/video-forward, restrained). Ship 5–10 featured Works eventually; prove the shape first.
