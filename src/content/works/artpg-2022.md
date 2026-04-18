@@ -1,0 +1,17 @@
+---
+title: ArtPG
+year: '2022'
+medium: performance
+role: Choreographer + Sound Design
+tags:
+  - dance
+  - score
+  - nyc-current
+section: Dance for Stage
+summary: Choreography and original sound design.
+vimeoPrivacy: public
+status: draft
+---
+
+*Imported from catalog. Body pending.*
+

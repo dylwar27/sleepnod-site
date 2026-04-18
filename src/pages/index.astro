@@ -9,7 +9,7 @@ works.sort((a, b) => {
   const ao = a.data.featuredOrder ?? 999;
   const bo = b.data.featuredOrder ?? 999;
   if (ao !== bo) return ao - bo;
-  return b.data.year.localeCompare(a.data.year);
+  return (b.data.year ?? '').localeCompare(a.data.year ?? '');
 });
 ---
 <Base>

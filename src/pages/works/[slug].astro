@@ -18,7 +18,7 @@ export async function getStaticPaths() {
 const { work } = Astro.props;
 const { Content } = await work.render();
 const { data } = work;
-const year = data.year.slice(0, 4);
+const year = data.year?.slice(0, 4) ?? '';
 
 const all = await getCollection('works', ({ data: d }) => d.status !== 'draft');
 const related = all
@@ -52,9 +52,9 @@ const heroImage = rawHero ? withBase(rawHero) : null;
     <header>
       <h1>{data.preservedTitle || data.title}</h1>
       <p class="meta-line">
-        {data.medium} · {year}{data.venue ? ` · ${data.venue}` : ''}
+        {data.medium}{year ? ` · ${year}` : ''}{data.venue ? ` · ${data.venue}` : ''}
       </p>
-      <p class="role">{data.role}</p>
+      {data.role && <p class="role">{data.role}</p>}
     </header>
 
     <div class="body">

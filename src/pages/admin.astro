@@ -54,9 +54,9 @@ const rows: AdminRow[] = await Promise.all(
       file: `src/content/works/${w.id}`,
       title: w.data.title,
       preservedTitle: w.data.preservedTitle ?? '',
-      year: w.data.year,
+      year: w.data.year ?? '',
       medium: w.data.medium,
-      role: w.data.role,
+      role: w.data.role ?? '',
       venue: w.data.venue ?? '',
       tags: w.data.tags,
       section: w.data.section ?? '',
@@ -76,7 +76,7 @@ const rows: AdminRow[] = await Promise.all(
   })
 );
 
-rows.sort((a, b) => b.year.localeCompare(a.year));
+rows.sort((a, b) => (b.year ?? '').localeCompare(a.year ?? ''));
 
 const stats = {
   total: rows.length,
@@ -475,10 +475,13 @@ const placeholder = withBase('/media/placeholder.svg');
 
     function flagsFor(r: AdminRow): string {
       const flags: string[] = [];
+      if (!r.year) flags.push('<span class="flag">no year</span>');
       if (!r.summary) flags.push('<span class="flag">no summary</span>');
       if (!r.vimeoId && !r.featuredImage) flags.push('<span class="flag">no media</span>');
       if (!r.role) flags.push('<span class="flag">no role</span>');
-      if (r.status !== 'draft' && !r.summary) flags.push('<span class="flag">publish-blocked</span>');
+      if (r.status !== 'draft' && (!r.summary || !r.year || !r.role)) {
+        flags.push('<span class="flag">publish-blocked</span>');
+      }
       return flags.length > 0 ? flags.join('') : '<span class="flag ok">—</span>';
     }
 
@@ -528,7 +531,7 @@ const placeholder = withBase('/media/placeholder.svg');
             <strong>${esc(r.preservedTitle || r.title)}</strong>
             <small>${esc(r.slug)}</small>
           </td>
-          <td>${esc(r.year.slice(0, 4))}</td>
+          <td>${esc(r.year ? r.year.slice(0, 4) : '—')}</td>
           <td>${esc(r.medium)}</td>
           <td class="col-tags truncate" title="${esc(r.tags.join(', '))}">${esc(r.tags.join(', '))}</td>
           <td class="col-summary truncate" title="${esc(r.summary)}">${esc(r.summary || '—')}</td>

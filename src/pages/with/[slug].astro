@@ -17,7 +17,7 @@ export async function getStaticPaths() {
       slug,
       works: works
         .filter((w) => w.data.tags.includes(`with-${slug}`))
-        .sort((a, b) => b.data.year.localeCompare(a.data.year)),
+        .sort((a, b) => (b.data.year ?? '').localeCompare(a.data.year ?? '')),
     },
   }));
 }

@@ -9,7 +9,7 @@ export interface Props {
 
 const { work } = Astro.props;
 const { data } = work;
-const year = data.year.slice(0, 4);
+const year = data.year?.slice(0, 4) ?? '';
 const vimeoPoster = data.vimeoId ? (await getVimeoMeta(data.vimeoId))?.thumbnail : null;
 const cover = withBase(data.featuredImage || vimeoPoster || '/media/placeholder.svg');
 const displayTitle = data.preservedTitle || data.title;

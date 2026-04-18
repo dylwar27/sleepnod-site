@@ -6,3 +6,6 @@ dist/
 .env
 .env.*
 .vercel/
+
+# Regenerated on every xlsx-import run.
+xlsx-import-report.txt

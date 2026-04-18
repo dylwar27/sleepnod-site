@@ -4,13 +4,13 @@ import Base from '../../layouts/Base.astro';
 import WorkCard from '../../components/WorkCard.astro';
 
 const works = await getCollection('works', ({ data }) => data.status !== 'draft');
-works.sort((a, b) => b.data.year.localeCompare(a.data.year));
+works.sort((a, b) => (b.data.year ?? '').localeCompare(a.data.year ?? ''));
 
 const mediums = Array.from(new Set(works.map((w) => w.data.medium))).sort();
 const entries = works.map((w) => ({
   slug: w.slug,
   medium: w.data.medium,
-  year: w.data.year.slice(0, 4),
+  year: (w.data.year ?? '').slice(0, 4),
 }));
 ---
 <Base title="Works — SLEEP NOD">

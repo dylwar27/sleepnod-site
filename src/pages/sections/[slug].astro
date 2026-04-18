@@ -14,7 +14,7 @@ export async function getStaticPaths() {
       section,
       works: works
         .filter((w) => w.data.section === section)
-        .sort((a, b) => b.data.year.localeCompare(a.data.year)),
+        .sort((a, b) => (b.data.year ?? '').localeCompare(a.data.year ?? '')),
     },
   }));
 }

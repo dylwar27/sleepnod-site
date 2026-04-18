@@ -10,9 +10,9 @@ const works = defineCollection({
   schema: z.object({
     title: z.string(),
     preservedTitle: z.string().optional(),
-    year: fuzzyDate,
+    year: fuzzyDate.optional(),
     medium: z.enum(['film', 'video', 'performance', 'sound', 'writing', 'event', 'installation', 'other']),
-    role: z.string(),
+    role: z.string().optional(),
     venue: z.string().optional(),
     tags: z.array(z.string()).default([]),
     section: z.string().optional(),

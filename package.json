@@ -12,5 +12,8 @@
   "dependencies": {
     "astro": "^4.16.18",
     "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "xlsx": "^0.18.5"
   }
 }
