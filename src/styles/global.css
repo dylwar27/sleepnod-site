@@ -1,9 +1,9 @@
 :root {
-  --bg: #faf7f2;
-  --ink: #1a1a18;
-  --muted: #6a6a62;
-  --rule: rgba(26, 26, 24, 0.12);
-  --accent: #1a1a18;
+  --bg: #161310;
+  --ink: #f0ece3;
+  --muted: #7a756e;
+  --rule: rgba(240, 236, 227, 0.1);
+  --card-bg: #221e19;
   --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --max-w: 1440px;
@@ -154,7 +154,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .work-card figure {
   margin: 0;
-  background: #eceae4;
+  background: var(--card-bg);
   aspect-ratio: 16 / 9;
   overflow: hidden;
 }
@@ -195,12 +195,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .work-hero {
   margin-bottom: 2.5rem;
-  background: #eceae4;
+  background: var(--card-bg);
   aspect-ratio: 16 / 9;
   overflow: hidden;
 }
 
 .work-hero img { width: 100%; height: 100%; object-fit: cover; }
+
+.work-embed {
+  margin-bottom: 1.5rem;
+}
 
 .work header { max-width: 720px; margin-bottom: 2.5rem; }
 
@@ -272,7 +276,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .vimeo-embed {
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: #1a1a18;
+  background: #0a0908;
 }
 
 .vimeo-embed iframe { width: 100%; height: 100%; border: 0; }
