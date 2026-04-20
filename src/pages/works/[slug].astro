@@ -1,5 +1,5 @@
 ---
-import { getCollection } from 'astro:content';
+import { getCollection, getEntries, getEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import VimeoEmbed from '../../components/VimeoEmbed.astro';
 import Gallery from '../../components/Gallery.astro';
@@ -32,7 +32,14 @@ const related = all
   .slice(0, 3)
   .map(({ w }) => w);
 
+const collaborators = data.collaborators.length > 0
+  ? await getEntries(data.collaborators)
+  : [];
 const collabTags = data.tags.filter((t) => t.startsWith('with-'));
+const venueEntry = data.venueRef ? await getEntry(data.venueRef) : null;
+const venueLabel = venueEntry
+  ? (venueEntry.data.preservedName || venueEntry.data.name)
+  : data.venue;
 const rawHero = data.featuredImage
   || (data.vimeoId ? (await getVimeoMeta(data.vimeoId))?.thumbnail : null);
 const heroImage = rawHero ? withBase(rawHero) : null;
@@ -86,7 +93,9 @@ const scWidgetUrl = data.soundcloudUrl
     <header>
       <h1>{data.preservedTitle || data.title}</h1>
       <p class="meta-line">
-        {data.medium}{year ? ` · ${year}` : ''}{data.venue ? ` · ${data.venue}` : ''}
+        {data.medium}{year ? ` · ${year}` : ''}{venueLabel ? ' · ' : ''}{venueEntry ? (
+          <a href={withBase(`/venues/${venueEntry.id}/`)}>{venueLabel}</a>
+        ) : venueLabel}
       </p>
       {data.role && <p class="role">{data.role}</p>}
     </header>
@@ -97,10 +106,13 @@ const scWidgetUrl = data.soundcloudUrl
 
     <Gallery items={data.gallery} />
 
-    {collabTags.length > 0 && (
+    {(collaborators.length > 0 || collabTags.length > 0) && (
       <aside class="collaborators">
         <h2>Collaborators</h2>
         <ul>
+          {collaborators.map((p) => (
+            <li><a href={withBase(`/people/${p.id}/`)}>{p.data.preservedName || p.data.name}</a></li>
+          ))}
           {collabTags.map((tag) => (
             <li><a href={withBase(`/with/${tag.replace(/^with-/, '')}/`)}>{tag.replace(/^with-/, '').replace(/-/g, ' ')}</a></li>
           ))}
