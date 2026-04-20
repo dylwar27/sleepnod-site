@@ -4,6 +4,79 @@ Running log of Claude Code sessions on this repo. Newest first. Each entry is a 
 
 ---
 
+## Session 03 — 2026-04-19/20 — dark theme, multi-platform embeds, in-browser admin editor, Vimeo token
+
+**Goal:** make `/admin` an actual lightweight CMS rather than a CSV round-trip — toggle featured/published inline, add YouTube/SoundCloud/Bandcamp embeds alongside Vimeo. Flip the site to a dark warm-off-white palette. Wire the Vimeo API token through for private/unlisted poster pulls.
+
+**Done — 1 commit on `main` (`2f6b851`) + 1 open PR (`#1`, branch `feature/vimeo-token-wire`):**
+
+**Dark theme.** Full palette flip in [src/styles/global.css](src/styles/global.css:1): `--bg: #161310`, `--ink: #f0ece3`, `--muted: #7a756e`, `--rule: rgba(240,236,227,0.1)`. New `--card-bg: #221e19` for figure/hero placeholders. `.work-embed` class added for SoundCloud/Bandcamp iframes. `theme-color` meta in [src/layouts/Base.astro](src/layouts/Base.astro:1) flipped to `#161310`. Admin page's hardcoded surface colors replaced with `rgba(255,255,255,0.04)` / `rgba(255,255,255,0.08)` / warm amber tints (`#c47a3a`, `#d46040`, `#3a9a7a`).
+
+**Schema — 3 embed fields.** [src/content/config.ts](src/content/config.ts:1) gained:
+```ts
+youtubeId: z.string().optional(),          // bare ID
+soundcloudUrl: z.string().optional(),       // full track/playlist URL
+bandcampEmbedUrl: z.string().optional(),    // Bandcamp EmbeddedPlayer src (from their share dialog)
+```
+Bandcamp uses a full embed URL rather than an ID because their share dialog is the only reliable source of the composite album/track identifier.
+
+**Embed rendering.** [src/pages/works/[slug].astro](src/pages/works/[slug].astro:1) priority: Vimeo > YouTube > image for the hero. SoundCloud + Bandcamp render below the hero (can coexist with any video). SoundCloud widget URL encodes the track page URL into the `w.soundcloud.com/player/` query string with a warm amber accent (`color=%23c47a3a`).
+
+**Admin editor.** [src/pages/admin.astro](src/pages/admin.astro:1) — ~940 lines, major rewrite:
+- **Status pill click** cycles `draft → published → featured → draft` in memory (no drawer).
+- **Row click** (anywhere else) opens a right-side drawer (~420px, ESC/overlay closes).
+- **Embeds column** replaces the old Flags column: `V` `YT` `SC` `BC` badges lit amber when set, muted otherwise. Flags moved to a hover title on the status pill.
+- **Drawer fieldsets**: Visibility (3-button status selector + featured order input, visible only when `featured`), Embeds (Vimeo / YouTube / SoundCloud / Bandcamp inputs), Content (summary textarea, tags CSV input).
+- **Pending changes** tracked in `Map<string, AdminRow>`; rows with unsaved edits get a left-border accent (`#c47a3a`).
+- **"Download changes (N)"** button in toolbar, hidden until `pending.size > 0`. Emits a JSZip of only the changed `.md` files using the existing `emitMarkdown()` generator — gallery + body preserved from the source.
+
+**Vimeo API token support.** [src/lib/vimeo.ts](src/lib/vimeo.ts:1) now reads `process.env.VIMEO_TOKEN`. When set, uses `api.vimeo.com/videos/${id}` with `Authorization: bearer ${token}` (works for public, unlisted, and private videos); picks the largest thumbnail ≤1920px from `pictures.sizes`. When unset, falls back to public-only oEmbed. Separate cache files per auth method (`${id}-api.json` vs `${id}.json`) so a token-less build can't poison the authenticated cache.
+
+**Workflow wiring (PR #1, `feature/vimeo-token-wire`).** `.github/workflows/deploy.yml` passes `secrets.VIMEO_TOKEN` into the Astro build step. `.env.example` added as a placeholder; `.gitignore` gained `!.env.example` so the example escapes the `.env.*` rule. Real `.env` stays ignored.
+
+**Token verification (2026-04-20).** First token returned 401 with Vimeo error 8003 ("app didn't receive the user's credentials") — 40-char hex but not tied to any registered app, likely from the deprecated account-level token UI rather than an app-level PAT. Second token (32-char from the app-level PAT UI) returns 200 against `/me` and resolves a real video's metadata through `getVimeoMeta()` end-to-end — confirmed via ephemeral test script: cache file written as `1149096178-api.json` with the `-api` suffix, `1920x1080` thumbnail URL from `i.vimeocdn.com`, correct duration and dimensions. Token now lives in local `.env` (gitignored).
+
+**State at end of session:**
+- Repo: [dylwar27/sleepnod-site](https://github.com/dylwar27/sleepnod-site), `main` at `2f6b851`
+- Live: [https://dylwar27.github.io/sleepnod-site/](https://dylwar27.github.io/sleepnod-site/) — dark theme shipped
+- Open PR: [#1](https://github.com/dylwar27/sleepnod-site/pull/1) — VIMEO_TOKEN wiring, safe to merge (no behavior change until the repo secret is added)
+- Build: 7 pages (only 1 non-draft Work still, `no-haiku`, has no vimeoId so the token path isn't exercised on CI yet)
+- Works: 69 (1 featured, 68 drafts from xlsx)
+
+**Remaining items:**
+
+Curator work (Dyl):
+1. **Add `VIMEO_TOKEN` as a repo secret** at Settings → Secrets and variables → Actions → New repository secret. Merge PR #1 before or after, either order is fine.
+2. **Hand-pick 4 more Works to feature** (`status: featured`, `featuredOrder: 2–5`). Candidates still: `ArtPG` (2022), `The Lesser Evils` (2017), `Chimera` (2016), `Eat the Heart` (2015), etc. Use the new drawer at `/admin` — click the status pill twice (draft → published → featured), open the row, fill summary/embeds/order, Save, Download changes, commit.
+3. **Backfill Vimeo IDs** on Works that have them — the drawer's Vimeo ID field accepts the bare numeric ID.
+
+Agent-doable next:
+4. **Session 04 warmup** — smoke-test the drawer on mobile widths (≤600px). Current CSS uses a fixed 420px panel; may need `max-width: 100vw` + responsive tweaks.
+5. **Passphrase rotation** — `/admin` still on the default `sleepnod` passphrase (hash `111db19e5ce5`). Rotate if wider eyes land on the preview URL.
+6. **Keystatic Phase 2** — still deferred. The drawer + CSV round-trip covers Dyl's current workflow; Keystatic earns its slot when the Work count climbs or when a second curator needs access.
+
+**Open questions:**
+- **Vimeo thumbnail cache** — currently gitignored (`.cache/` → regenerated every build). Fine for now; if CI builds start hitting Vimeo's rate limits on every push, consider committing the cache or moving it to a Pages artifact cache.
+- **Bandcamp embed UX** — asking Dyl to paste the full EmbeddedPlayer src is clunky. Could parse a pasted share URL and reconstruct the embed URL, but the share-dialog form varies. Keep as-is until it bites.
+
+**Files touched this session:**
+- [src/styles/global.css](src/styles/global.css:1) — dark palette
+- [src/layouts/Base.astro](src/layouts/Base.astro:1) — theme-color
+- [src/content/config.ts](src/content/config.ts:1) — `youtubeId`, `soundcloudUrl`, `bandcampEmbedUrl`
+- [src/pages/works/[slug].astro](src/pages/works/%5Bslug%5D.astro:1) — multi-platform embed rendering
+- [src/pages/admin.astro](src/pages/admin.astro:1) — drawer + status cycling + pending-changes zip
+- [src/lib/vimeo.ts](src/lib/vimeo.ts:1) — API token path with separate cache key
+- `.github/workflows/deploy.yml` — `VIMEO_TOKEN` env pass-through (PR #1)
+- `.env.example`, `.gitignore` — example placeholder + allow-rule (PR #1)
+
+**Environment notes for next session:**
+- `.env` locally holds the working token: `VIMEO_TOKEN=a8a41534747d5eff975c9201ad53c740` (32-char, not the 40-char one — the deprecated UI produces invalid tokens; only the **app-level** PAT UI works)
+- Build uses `process.env.VIMEO_TOKEN` (not `import.meta.env`) — Astro/Vite populates it from `.env` automatically for server-side code
+- Port 4322 for dev server (4321 collides with CRFW); `.claude/launch.json` documents this
+- Cache directory at `.cache/vimeo/` — `-api.json` suffix = authenticated fetch; no suffix = oEmbed fallback
+
+---
+
 ## Session 02 — 2026-04-17 — Phase 3 xlsx import (68 Works)
 
 **Goal:** one-shot migration from `SleepNod_Catalog_of_Works.xlsx` into `src/content/works/*.md`. All imported Works land as drafts; `/admin` becomes the curation gate.
