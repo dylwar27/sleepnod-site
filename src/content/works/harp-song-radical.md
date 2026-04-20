@@ -5,11 +5,12 @@ role: Actor
 tags:
   - video
   - acting
-  - with-jeffry-frace
-section: 'Performance (in others'' work)'
+section: Performance (in others' work)
 summary: Acting role in Jeffry Frace film.
 vimeoPrivacy: public
 status: draft
+collaborators:
+  - jeffry-frace
 ---
 
 *Imported from catalog. Body pending.*
