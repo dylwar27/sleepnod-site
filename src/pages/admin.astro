@@ -10,6 +10,8 @@ import { withBase } from '../lib/url';
 // Real protection is the unlisted URL + robots.txt Disallow. Retire for Keystatic (Phase 2).
 
 const works = await getCollection('works');
+const people = await getCollection('people');
+const venues = await getCollection('venues');
 
 type AdminRow = {
   slug: string;
@@ -20,6 +22,8 @@ type AdminRow = {
   medium: string;
   role: string;
   venue: string;
+  venueRef: string;
+  collaborators: string[];
   tags: string[];
   section: string;
   summary: string;
@@ -39,6 +43,28 @@ type AdminRow = {
   thumbnail: string | null;
 };
 
+type AdminPerson = {
+  slug: string;
+  name: string;
+  preservedName: string;
+  role: string[];
+  bio: string;
+  links: Array<{ label: string; url: string }>;
+  archivePath: string;
+  published: boolean;
+};
+
+type AdminVenue = {
+  slug: string;
+  name: string;
+  preservedName: string;
+  city: string;
+  country: string;
+  website: string;
+  note: string;
+  published: boolean;
+};
+
 const rows: AdminRow[] = await Promise.all(
   works.map(async (w): Promise<AdminRow> => {
     const vimeoPoster = w.data.vimeoId ? (await getVimeoMeta(w.data.vimeoId))?.thumbnail : null;
@@ -51,6 +77,8 @@ const rows: AdminRow[] = await Promise.all(
       medium: w.data.medium,
       role: w.data.role ?? '',
       venue: w.data.venue ?? '',
+      venueRef: w.data.venueRef?.id ?? '',
+      collaborators: (w.data.collaborators ?? []).map((ref: { id: string }) => ref.id),
       tags: w.data.tags,
       section: w.data.section ?? '',
       summary: w.data.summary ?? '',
@@ -73,6 +101,32 @@ const rows: AdminRow[] = await Promise.all(
 );
 
 rows.sort((a, b) => (b.year ?? '').localeCompare(a.year ?? ''));
+
+const peopleRows: AdminPerson[] = people
+  .map((p): AdminPerson => ({
+    slug: p.id,
+    name: p.data.name,
+    preservedName: p.data.preservedName ?? '',
+    role: p.data.role,
+    bio: p.data.bio ?? '',
+    links: p.data.links,
+    archivePath: p.data.archivePath ?? '',
+    published: p.data.published,
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+const venueRows: AdminVenue[] = venues
+  .map((v): AdminVenue => ({
+    slug: v.id,
+    name: v.data.name,
+    preservedName: v.data.preservedName ?? '',
+    city: v.data.city ?? '',
+    country: v.data.country ?? '',
+    website: v.data.website ?? '',
+    note: v.data.note ?? '',
+    published: v.data.published,
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 const stats = {
   total: rows.length,
@@ -97,12 +151,18 @@ const placeholder = withBase('/media/placeholder.svg');
 
   <div id="admin" class="admin-panel" style="display:none;">
     <header class="admin-header">
-      <h1>Works catalog</h1>
+      <h1>Vault admin</h1>
       <div class="admin-stats">
-        {stats.total} total · {stats.featured} featured · {stats.published} published · {stats.draft} draft
+        {stats.total} works · {peopleRows.length} people · {venueRows.length} venues
       </div>
+      <nav class="admin-tabs" role="tablist">
+        <button type="button" class="admin-tab active" data-tab="works" role="tab">Works <span class="tab-count">{stats.total}</span></button>
+        <button type="button" class="admin-tab" data-tab="people" role="tab">People <span class="tab-count">{peopleRows.length}</span></button>
+        <button type="button" class="admin-tab" data-tab="venues" role="tab">Venues <span class="tab-count">{venueRows.length}</span></button>
+      </nav>
     </header>
 
+    <section class="admin-tab-panel" data-panel="works">
     <div class="admin-toolbar">
       <input id="search" placeholder="Search title, slug, tags, summary…" class="admin-input" />
       <select id="filter-status" class="admin-select">
@@ -147,11 +207,65 @@ const placeholder = withBase('/media/placeholder.svg');
     <p class="admin-note">
       <strong>Quick edit:</strong> click a row to open the editor — set status, embed IDs, summary, tags.
       Click a <em>status pill</em> to cycle it instantly (draft → published → featured → draft).
-      Changes are held in memory; click <em>Download changes</em> to get a zip of updated <code>.md</code> files,
-      then drop into <code>src/content/works/</code> and commit + push.<br>
+      Changes are held in memory across all tabs; click <em>Download changes</em> to get a zip with
+      <code>works/</code>, <code>people/</code>, <code>venues/</code> subfolders — unzip into <code>src/content/</code>
+      and commit + push.<br>
       <strong>Bulk edit:</strong> <em>Download CSV</em> → edit in Sheets/Excel → <em>Upload CSV</em> →
-      zip of updated files. <code>gallery</code> and body are preserved across both flows.
+      zip of updated works. <code>gallery</code> and body are preserved across both flows.
     </p>
+    </section>
+
+    <section class="admin-tab-panel" data-panel="people" hidden>
+      <div class="admin-toolbar">
+        <input id="people-search" placeholder="Search name, slug, role, bio…" class="admin-input" />
+        <button id="people-new" class="admin-btn" type="button">New person</button>
+        <span id="people-count" class="admin-count"></span>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th class="col-title">Name · slug</th>
+              <th>Role</th>
+              <th>Bio</th>
+              <th>Links</th>
+              <th>Published</th>
+            </tr>
+          </thead>
+          <tbody id="people-tbody"></tbody>
+        </table>
+      </div>
+      <p class="admin-note">
+        Click a row to edit. Click <em>New person</em> to seed a row (e.g. for unmatched
+        <code>with-*</code> tags). People are stored as <code>src/content/people/&lt;slug&gt;.json</code>.
+      </p>
+    </section>
+
+    <section class="admin-tab-panel" data-panel="venues" hidden>
+      <div class="admin-toolbar">
+        <input id="venues-search" placeholder="Search name, slug, city, note…" class="admin-input" />
+        <button id="venues-new" class="admin-btn" type="button">New venue</button>
+        <span id="venues-count" class="admin-count"></span>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th class="col-title">Name · slug</th>
+              <th>City</th>
+              <th>Country</th>
+              <th>Website</th>
+              <th>Note</th>
+              <th>Published</th>
+            </tr>
+          </thead>
+          <tbody id="venues-tbody"></tbody>
+        </table>
+      </div>
+      <p class="admin-note">
+        Venues are stored as <code>src/content/venues/&lt;slug&gt;.json</code>.
+      </p>
+    </section>
   </div>
 
   <!-- Edit drawer overlay -->
@@ -215,7 +329,120 @@ const placeholder = withBase('/media/placeholder.svg');
     </div>
   </aside>
 
+  <!-- Person drawer -->
+  <aside id="person-drawer" class="edit-drawer" aria-label="Edit person">
+    <div class="drawer-header">
+      <span id="person-drawer-title" class="drawer-title"></span>
+      <button id="person-drawer-close" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="drawer-body">
+      <fieldset class="drawer-section">
+        <legend>Identity</legend>
+        <div class="form-row">
+          <label for="p-slug">Slug</label>
+          <input type="text" id="p-slug" placeholder="e.g. anna-conda" />
+        </div>
+        <div class="form-row">
+          <label for="p-name">Name</label>
+          <input type="text" id="p-name" placeholder="Readable name" />
+        </div>
+        <div class="form-row">
+          <label for="p-preservedName">Preserved name (optional)</label>
+          <input type="text" id="p-preservedName" placeholder="If idiosyncratic typography" />
+        </div>
+        <div class="form-row">
+          <label for="p-role">Role</label>
+          <input type="text" id="p-role" placeholder="comma-separated: Choreographer, Performer" />
+        </div>
+      </fieldset>
+      <fieldset class="drawer-section">
+        <legend>Content</legend>
+        <div class="form-row">
+          <label for="p-bio">Bio</label>
+          <textarea id="p-bio" rows="4"></textarea>
+        </div>
+        <div class="form-row">
+          <label for="p-archivePath">Archive path (optional)</label>
+          <input type="text" id="p-archivePath" placeholder="Internal reference" />
+        </div>
+      </fieldset>
+      <fieldset class="drawer-section">
+        <legend>Visibility</legend>
+        <div class="form-row">
+          <label>
+            <input type="checkbox" id="p-published" /> Published
+          </label>
+        </div>
+      </fieldset>
+    </div>
+    <div class="drawer-footer">
+      <button id="person-drawer-save" class="admin-btn" type="button">Save</button>
+      <button id="person-drawer-cancel" class="admin-btn admin-btn--outline" type="button">Cancel</button>
+    </div>
+  </aside>
+
+  <!-- Venue drawer -->
+  <aside id="venue-drawer" class="edit-drawer" aria-label="Edit venue">
+    <div class="drawer-header">
+      <span id="venue-drawer-title" class="drawer-title"></span>
+      <button id="venue-drawer-close" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="drawer-body">
+      <fieldset class="drawer-section">
+        <legend>Identity</legend>
+        <div class="form-row">
+          <label for="v-slug">Slug</label>
+          <input type="text" id="v-slug" placeholder="e.g. joes-pub" />
+        </div>
+        <div class="form-row">
+          <label for="v-name">Name</label>
+          <input type="text" id="v-name" placeholder="Readable name" />
+        </div>
+        <div class="form-row">
+          <label for="v-preservedName">Preserved name (optional)</label>
+          <input type="text" id="v-preservedName" placeholder="If idiosyncratic typography" />
+        </div>
+      </fieldset>
+      <fieldset class="drawer-section">
+        <legend>Location</legend>
+        <div class="form-row">
+          <label for="v-city">City</label>
+          <input type="text" id="v-city" />
+        </div>
+        <div class="form-row">
+          <label for="v-country">Country</label>
+          <input type="text" id="v-country" />
+        </div>
+      </fieldset>
+      <fieldset class="drawer-section">
+        <legend>Details</legend>
+        <div class="form-row">
+          <label for="v-website">Website</label>
+          <input type="text" id="v-website" placeholder="https://…" />
+        </div>
+        <div class="form-row">
+          <label for="v-note">Note</label>
+          <textarea id="v-note" rows="3"></textarea>
+        </div>
+      </fieldset>
+      <fieldset class="drawer-section">
+        <legend>Visibility</legend>
+        <div class="form-row">
+          <label>
+            <input type="checkbox" id="v-published" /> Published
+          </label>
+        </div>
+      </fieldset>
+    </div>
+    <div class="drawer-footer">
+      <button id="venue-drawer-save" class="admin-btn" type="button">Save</button>
+      <button id="venue-drawer-cancel" class="admin-btn admin-btn--outline" type="button">Cancel</button>
+    </div>
+  </aside>
+
   <script id="admin-data" type="application/json" set:html={JSON.stringify(rows)}></script>
+  <script id="admin-people" type="application/json" set:html={JSON.stringify(peopleRows)}></script>
+  <script id="admin-venues" type="application/json" set:html={JSON.stringify(venueRows)}></script>
   <script id="admin-placeholder" type="text/plain" set:html={placeholder}></script>
 
   <style>
@@ -274,7 +501,7 @@ const placeholder = withBase('/media/placeholder.svg');
       padding: 1.5rem clamp(1rem, 3vw, 2rem) 6rem;
       max-width: 100%;
     }
-    .admin-header { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--rule); }
+    .admin-header { margin-bottom: 1rem; padding-bottom: 0; border-bottom: 0; }
     .admin-header h1 { font-family: var(--serif); font-size: 1.75rem; margin: 0 0 0.25rem; }
     .admin-stats {
       font-family: var(--mono);
@@ -282,7 +509,39 @@ const placeholder = withBase('/media/placeholder.svg');
       color: var(--muted);
       letter-spacing: 0.06em;
       text-transform: uppercase;
+      margin-bottom: 1rem;
     }
+    .admin-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--rule);
+    }
+    .admin-tab {
+      padding: 0.75rem 1.25rem;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: transparent;
+      color: var(--muted);
+      border: 0;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      margin-bottom: -1px;
+    }
+    .admin-tab:hover { color: var(--ink); }
+    .admin-tab.active {
+      color: var(--ink);
+      border-bottom-color: var(--ink);
+    }
+    .admin-tab .tab-count {
+      display: inline-block;
+      margin-left: 0.375rem;
+      font-size: 0.6875rem;
+      color: var(--muted);
+    }
+    .admin-tab.active .tab-count { color: var(--ink); }
+    .admin-tab-panel { padding-top: 1rem; }
 
     /* Toolbar */
     .admin-toolbar {
@@ -625,6 +884,7 @@ const placeholder = withBase('/media/placeholder.svg');
     type AdminRow = {
       slug: string; file: string; title: string; preservedTitle: string;
       year: string; medium: string; role: string; venue: string;
+      venueRef: string; collaborators: string[];
       tags: string[]; section: string; summary: string;
       featuredImage: string; vimeoId: string; vimeoPrivacy: string;
       youtubeId: string; soundcloudUrl: string; bandcampEmbedUrl: string;
@@ -634,8 +894,27 @@ const placeholder = withBase('/media/placeholder.svg');
       body: string; thumbnail: string | null;
     };
 
+    type AdminPerson = {
+      slug: string; name: string; preservedName: string;
+      role: string[]; bio: string;
+      links: Array<{ label: string; url: string }>;
+      archivePath: string; published: boolean;
+    };
+
+    type AdminVenue = {
+      slug: string; name: string; preservedName: string;
+      city: string; country: string; website: string;
+      note: string; published: boolean;
+    };
+
     const DATA: AdminRow[] = JSON.parse(
       (document.getElementById('admin-data') as HTMLScriptElement).textContent || '[]'
+    );
+    const PEOPLE: AdminPerson[] = JSON.parse(
+      (document.getElementById('admin-people') as HTMLScriptElement).textContent || '[]'
+    );
+    const VENUES: AdminVenue[] = JSON.parse(
+      (document.getElementById('admin-venues') as HTMLScriptElement).textContent || '[]'
     );
     const PLACEHOLDER = (document.getElementById('admin-placeholder') as HTMLScriptElement).textContent || '';
 
@@ -667,22 +946,27 @@ const placeholder = withBase('/media/placeholder.svg');
     pwBtn.addEventListener('click', tryLogin);
     pwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
 
-    if (sessionStorage.getItem(STORAGE_KEY) === '1') {
-      gate.style.display = 'none';
-      admin.style.display = 'block';
-      init();
-    }
-
-    // --- Pending changes ---
+    // --- Pending changes (works + people + venues) ---
     const pending = new Map<string, AdminRow>();
+    const peoplePending = new Map<string, AdminPerson>();
+    const venuesPending = new Map<string, AdminVenue>();
     let currentSlug: string | null = null;
     let drawerStatus = 'draft';
+    let personEditingSlug: string | null = null; // null when creating new
+    let personOriginalSlug: string | null = null;
+    let venueEditingSlug: string | null = null;
+    let venueOriginalSlug: string | null = null;
+
+    function totalPending(): number {
+      return pending.size + peoplePending.size + venuesPending.size;
+    }
 
     function updateDownloadBtn() {
       const btn = document.getElementById('download-changes') as HTMLButtonElement;
-      if (pending.size > 0) {
+      const n = totalPending();
+      if (n > 0) {
         btn.style.display = '';
-        btn.textContent = `Download changes (${pending.size})`;
+        btn.textContent = `Download changes (${n})`;
       } else {
         btn.style.display = 'none';
       }
@@ -718,7 +1002,9 @@ const placeholder = withBase('/media/placeholder.svg');
     function closeDrawer() {
       currentSlug = null;
       drawer.classList.remove('open');
-      overlay.classList.remove('open');
+      const personOpen = document.getElementById('person-drawer')?.classList.contains('open');
+      const venueOpen = document.getElementById('venue-drawer')?.classList.contains('open');
+      if (!personOpen && !venueOpen) overlay.classList.remove('open');
     }
 
     function updateStatusBtns(status: string) {
@@ -777,7 +1063,13 @@ const placeholder = withBase('/media/placeholder.svg');
     async function downloadChanges() {
       const zip = new JSZip();
       for (const [slug, merged] of pending) {
-        zip.file(`${slug}.md`, emitMarkdown(merged));
+        zip.file(`works/${slug}.md`, emitMarkdown(merged));
+      }
+      for (const [slug, merged] of peoplePending) {
+        zip.file(`people/${slug}.json`, emitPersonJson(merged));
+      }
+      for (const [slug, merged] of venuesPending) {
+        zip.file(`venues/${slug}.json`, emitVenueJson(merged));
       }
       const blob = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(blob);
@@ -786,6 +1078,229 @@ const placeholder = withBase('/media/placeholder.svg');
       a.download = `sleepnod-changes-${new Date().toISOString().slice(0, 10)}.zip`;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    function emitPersonJson(p: AdminPerson): string {
+      const out: Record<string, unknown> = {
+        name: p.name,
+      };
+      if (p.preservedName) out.preservedName = p.preservedName;
+      out.role = p.role;
+      if (p.bio) out.bio = p.bio;
+      out.links = p.links;
+      if (p.archivePath) out.archivePath = p.archivePath;
+      out.published = p.published;
+      return JSON.stringify(out, null, 2) + '\n';
+    }
+
+    function emitVenueJson(v: AdminVenue): string {
+      const out: Record<string, unknown> = {
+        name: v.name,
+      };
+      if (v.preservedName) out.preservedName = v.preservedName;
+      if (v.city) out.city = v.city;
+      if (v.country) out.country = v.country;
+      if (v.website) out.website = v.website;
+      if (v.note) out.note = v.note;
+      out.published = v.published;
+      return JSON.stringify(out, null, 2) + '\n';
+    }
+
+    // --- Tab switching ---
+    function activateTab(tab: string) {
+      document.querySelectorAll<HTMLButtonElement>('.admin-tab').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+      });
+      document.querySelectorAll<HTMLElement>('.admin-tab-panel').forEach((panel) => {
+        panel.hidden = panel.dataset.panel !== tab;
+      });
+    }
+
+    // --- People ---
+    const peopleTbody = document.getElementById('people-tbody') as HTMLTableSectionElement;
+    const peopleSearch = document.getElementById('people-search') as HTMLInputElement;
+    const peopleCount = document.getElementById('people-count') as HTMLSpanElement;
+    const personDrawer = document.getElementById('person-drawer') as HTMLElement;
+
+    function currentPeopleList(): AdminPerson[] {
+      const merged = PEOPLE.map((p) => peoplePending.get(p.slug) ?? p);
+      for (const [slug, p] of peoplePending) {
+        if (!merged.find((m) => m.slug === slug)) merged.push(p);
+      }
+      return merged.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function renderPeople() {
+      const q = peopleSearch.value.trim().toLowerCase();
+      const rows = currentPeopleList().filter((p) => {
+        if (!q) return true;
+        const hay = [p.name, p.preservedName, p.slug, p.role.join(' '), p.bio].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+      peopleCount.textContent = `${rows.length} of ${currentPeopleList().length}`;
+      peopleTbody.innerHTML = rows.map((p) => `
+        <tr data-slug="${esc(p.slug)}" class="${peoplePending.has(p.slug) ? 'row-pending' : ''}">
+          <td class="col-title title-cell">
+            <strong>${esc(p.preservedName || p.name)}</strong>
+            <small>${esc(p.slug)}</small>
+          </td>
+          <td>${esc(p.role.join(' · ') || '—')}</td>
+          <td class="col-summary truncate" title="${esc(p.bio)}">${esc(p.bio || '—')}</td>
+          <td>${p.links.length > 0 ? p.links.length : '—'}</td>
+          <td>${p.published ? 'yes' : 'no'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function openPersonDrawer(slug: string | null) {
+      personEditingSlug = slug;
+      personOriginalSlug = slug;
+      const base = slug
+        ? (peoplePending.get(slug) ?? PEOPLE.find((p) => p.slug === slug))
+        : null;
+      const p: AdminPerson = base ?? {
+        slug: '', name: '', preservedName: '',
+        role: [], bio: '', links: [], archivePath: '', published: true,
+      };
+      (document.getElementById('person-drawer-title') as HTMLElement).textContent =
+        slug ? (p.preservedName || p.name || p.slug) : 'New person';
+      (document.getElementById('p-slug') as HTMLInputElement).value = p.slug;
+      (document.getElementById('p-name') as HTMLInputElement).value = p.name;
+      (document.getElementById('p-preservedName') as HTMLInputElement).value = p.preservedName;
+      (document.getElementById('p-role') as HTMLInputElement).value = p.role.join(', ');
+      (document.getElementById('p-bio') as HTMLTextAreaElement).value = p.bio;
+      (document.getElementById('p-archivePath') as HTMLInputElement).value = p.archivePath;
+      (document.getElementById('p-published') as HTMLInputElement).checked = p.published;
+      overlay.classList.add('open');
+      personDrawer.classList.add('open');
+    }
+
+    function closePersonDrawer() {
+      personEditingSlug = null;
+      personOriginalSlug = null;
+      personDrawer.classList.remove('open');
+      if (!drawer.classList.contains('open') && !venueDrawer.classList.contains('open')) {
+        overlay.classList.remove('open');
+      }
+    }
+
+    function savePersonDrawer() {
+      const slug = (document.getElementById('p-slug') as HTMLInputElement).value.trim();
+      const name = (document.getElementById('p-name') as HTMLInputElement).value.trim();
+      if (!slug || !name) {
+        alert('Slug and name are required.');
+        return;
+      }
+      const rawRole = (document.getElementById('p-role') as HTMLInputElement).value;
+      const merged: AdminPerson = {
+        slug,
+        name,
+        preservedName: (document.getElementById('p-preservedName') as HTMLInputElement).value.trim(),
+        role: rawRole.split(/[,|;]/).map((t) => t.trim()).filter(Boolean),
+        bio: (document.getElementById('p-bio') as HTMLTextAreaElement).value.trim(),
+        links: (personOriginalSlug
+          ? (peoplePending.get(personOriginalSlug) ?? PEOPLE.find((p) => p.slug === personOriginalSlug))?.links ?? []
+          : []),
+        archivePath: (document.getElementById('p-archivePath') as HTMLInputElement).value.trim(),
+        published: (document.getElementById('p-published') as HTMLInputElement).checked,
+      };
+      peoplePending.set(slug, merged);
+      updateDownloadBtn();
+      renderPeople();
+      closePersonDrawer();
+    }
+
+    // --- Venues ---
+    const venuesTbody = document.getElementById('venues-tbody') as HTMLTableSectionElement;
+    const venuesSearch = document.getElementById('venues-search') as HTMLInputElement;
+    const venuesCount = document.getElementById('venues-count') as HTMLSpanElement;
+    const venueDrawer = document.getElementById('venue-drawer') as HTMLElement;
+
+    function currentVenuesList(): AdminVenue[] {
+      const merged = VENUES.map((v) => venuesPending.get(v.slug) ?? v);
+      for (const [slug, v] of venuesPending) {
+        if (!merged.find((m) => m.slug === slug)) merged.push(v);
+      }
+      return merged.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function renderVenues() {
+      const q = venuesSearch.value.trim().toLowerCase();
+      const rows = currentVenuesList().filter((v) => {
+        if (!q) return true;
+        const hay = [v.name, v.preservedName, v.slug, v.city, v.country, v.note].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+      venuesCount.textContent = `${rows.length} of ${currentVenuesList().length}`;
+      venuesTbody.innerHTML = rows.map((v) => `
+        <tr data-slug="${esc(v.slug)}" class="${venuesPending.has(v.slug) ? 'row-pending' : ''}">
+          <td class="col-title title-cell">
+            <strong>${esc(v.preservedName || v.name)}</strong>
+            <small>${esc(v.slug)}</small>
+          </td>
+          <td>${esc(v.city || '—')}</td>
+          <td>${esc(v.country || '—')}</td>
+          <td>${v.website ? `<a href="${esc(v.website)}" target="_blank" rel="noopener">link ↗</a>` : '—'}</td>
+          <td class="col-summary truncate" title="${esc(v.note)}">${esc(v.note || '—')}</td>
+          <td>${v.published ? 'yes' : 'no'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function openVenueDrawer(slug: string | null) {
+      venueEditingSlug = slug;
+      venueOriginalSlug = slug;
+      const base = slug
+        ? (venuesPending.get(slug) ?? VENUES.find((v) => v.slug === slug))
+        : null;
+      const v: AdminVenue = base ?? {
+        slug: '', name: '', preservedName: '',
+        city: '', country: '', website: '', note: '', published: true,
+      };
+      (document.getElementById('venue-drawer-title') as HTMLElement).textContent =
+        slug ? (v.preservedName || v.name || v.slug) : 'New venue';
+      (document.getElementById('v-slug') as HTMLInputElement).value = v.slug;
+      (document.getElementById('v-name') as HTMLInputElement).value = v.name;
+      (document.getElementById('v-preservedName') as HTMLInputElement).value = v.preservedName;
+      (document.getElementById('v-city') as HTMLInputElement).value = v.city;
+      (document.getElementById('v-country') as HTMLInputElement).value = v.country;
+      (document.getElementById('v-website') as HTMLInputElement).value = v.website;
+      (document.getElementById('v-note') as HTMLTextAreaElement).value = v.note;
+      (document.getElementById('v-published') as HTMLInputElement).checked = v.published;
+      overlay.classList.add('open');
+      venueDrawer.classList.add('open');
+    }
+
+    function closeVenueDrawer() {
+      venueEditingSlug = null;
+      venueOriginalSlug = null;
+      venueDrawer.classList.remove('open');
+      if (!drawer.classList.contains('open') && !personDrawer.classList.contains('open')) {
+        overlay.classList.remove('open');
+      }
+    }
+
+    function saveVenueDrawer() {
+      const slug = (document.getElementById('v-slug') as HTMLInputElement).value.trim();
+      const name = (document.getElementById('v-name') as HTMLInputElement).value.trim();
+      if (!slug || !name) {
+        alert('Slug and name are required.');
+        return;
+      }
+      const merged: AdminVenue = {
+        slug,
+        name,
+        preservedName: (document.getElementById('v-preservedName') as HTMLInputElement).value.trim(),
+        city: (document.getElementById('v-city') as HTMLInputElement).value.trim(),
+        country: (document.getElementById('v-country') as HTMLInputElement).value.trim(),
+        website: (document.getElementById('v-website') as HTMLInputElement).value.trim(),
+        note: (document.getElementById('v-note') as HTMLTextAreaElement).value.trim(),
+        published: (document.getElementById('v-published') as HTMLInputElement).checked,
+      };
+      venuesPending.set(slug, merged);
+      updateDownloadBtn();
+      renderVenues();
+      closeVenueDrawer();
     }
 
     // --- Filters + sort ---
@@ -908,7 +1423,11 @@ const placeholder = withBase('/media/placeholder.svg');
       document.getElementById('drawer-close')!.addEventListener('click', closeDrawer);
       document.getElementById('drawer-cancel')!.addEventListener('click', closeDrawer);
       document.getElementById('drawer-save')!.addEventListener('click', saveDrawer);
-      overlay.addEventListener('click', closeDrawer);
+      overlay.addEventListener('click', () => {
+        closeDrawer();
+        closePersonDrawer();
+        closeVenueDrawer();
+      });
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
       document.querySelectorAll<HTMLButtonElement>('.status-btns button').forEach((btn) => {
@@ -927,7 +1446,44 @@ const placeholder = withBase('/media/placeholder.svg');
         if (row) openDrawer(row.dataset.slug!);
       });
 
+      // Tab switching
+      document.querySelectorAll<HTMLButtonElement>('.admin-tab').forEach((btn) => {
+        btn.addEventListener('click', () => activateTab(btn.dataset.tab!));
+      });
+
+      // People
+      peopleSearch.addEventListener('input', renderPeople);
+      document.getElementById('people-new')!.addEventListener('click', () => openPersonDrawer(null));
+      peopleTbody.addEventListener('click', (e) => {
+        const row = (e.target as Element).closest('tr[data-slug]') as HTMLElement | null;
+        if (row) openPersonDrawer(row.dataset.slug!);
+      });
+      document.getElementById('person-drawer-close')!.addEventListener('click', closePersonDrawer);
+      document.getElementById('person-drawer-cancel')!.addEventListener('click', closePersonDrawer);
+      document.getElementById('person-drawer-save')!.addEventListener('click', savePersonDrawer);
+
+      // Venues
+      venuesSearch.addEventListener('input', renderVenues);
+      document.getElementById('venues-new')!.addEventListener('click', () => openVenueDrawer(null));
+      venuesTbody.addEventListener('click', (e) => {
+        const row = (e.target as Element).closest('tr[data-slug]') as HTMLElement | null;
+        if (row) openVenueDrawer(row.dataset.slug!);
+      });
+      document.getElementById('venue-drawer-close')!.addEventListener('click', closeVenueDrawer);
+      document.getElementById('venue-drawer-cancel')!.addEventListener('click', closeVenueDrawer);
+      document.getElementById('venue-drawer-save')!.addEventListener('click', saveVenueDrawer);
+
+      // Escape closes any open drawer
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closePersonDrawer();
+          closeVenueDrawer();
+        }
+      });
+
       renderTable();
+      renderPeople();
+      renderVenues();
     }
 
     // --- CSV columns ---
@@ -1137,6 +1693,13 @@ const placeholder = withBase('/media/placeholder.svg');
     function showImportError(msg: string) {
       importResult.hidden = false;
       importResult.innerHTML = `<strong style="color:#d46040;">${esc(msg)}</strong>`;
+    }
+
+    // --- Kick off (after all vars + fns are declared) ---
+    if (sessionStorage.getItem(STORAGE_KEY) === '1') {
+      gate.style.display = 'none';
+      admin.style.display = 'block';
+      init();
     }
   </script>
 </Base>
