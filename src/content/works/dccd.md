@@ -5,12 +5,13 @@ role: Video Director
 tags:
   - video
   - dance
-  - with-dccd
   - dallas
 section: Video Direction
 summary: 'Video direction for Dark Circles Contemporary Dance, Dallas-based contemporary company.'
 vimeoPrivacy: public
 status: draft
+collaborators:
+  - dccd
 ---
 
 *Imported from catalog. Body pending.*

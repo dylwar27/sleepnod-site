@@ -5,13 +5,14 @@ medium: video
 role: Video Director
 tags:
   - video
-  - with-alice
   - on-the-boards
   - seattle-2010s
 section: Video Direction
 summary: Video direction for Alice Gosti at On the Boards.
 vimeoPrivacy: public
 status: draft
+collaborators:
+  - alice-gosti
 ---
 
 *Imported from catalog. Body pending.*

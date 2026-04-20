@@ -5,13 +5,14 @@ medium: video
 role: Video
 tags:
   - video
-  - with-alice
   - school
   - '2014'
 section: Video Direction
 summary: 'Teaser video for a school play, 2014, with Alice Gosti.'
 vimeoPrivacy: public
 status: draft
+collaborators:
+  - alice-gosti
 ---
 
 *Imported from catalog. Body pending.*
