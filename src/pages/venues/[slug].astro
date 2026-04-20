@@ -1,0 +1,41 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import WorkCard from '../../components/WorkCard.astro';
+
+export async function getStaticPaths() {
+  const venues = await getCollection('venues', ({ data }) => data.published !== false);
+  const works = await getCollection('works', ({ data }) => data.status !== 'draft');
+  return venues.map((venue) => ({
+    params: { slug: venue.id },
+    props: {
+      venue,
+      works: works
+        .filter((w) => w.data.venueRef?.id === venue.id)
+        .sort((a, b) => (b.data.year ?? '').localeCompare(a.data.year ?? '')),
+    },
+  }));
+}
+
+const { venue, works } = Astro.props;
+const { data } = venue;
+const placeLine = [data.city, data.country].filter(Boolean).join(', ');
+---
+<Base title={`${data.preservedName || data.name} — SLEEP NOD`}>
+  <section class="container" style="padding-block: 3rem 2rem;">
+    <div class="section-label">Venue</div>
+    <h1 style="font-family: var(--serif); font-weight: 700; font-size: clamp(2.25rem, 5vw, 3.5rem); line-height: 1.05; margin: 0;">{data.preservedName || data.name}</h1>
+    {placeLine && <p class="meta-line" style="margin-top: 0.5rem;">{placeLine}</p>}
+    {data.note && <p style="margin-top: 1rem; max-width: 60ch;">{data.note}</p>}
+    {data.website && (
+      <p style="margin-top: 1rem;"><a href={data.website} target="_blank" rel="noopener">{data.website.replace(/^https?:\/\//, '').replace(/\/$/, '')} ↗</a></p>
+    )}
+  </section>
+  {works.length > 0 && (
+    <section class="container">
+      <div class="work-grid work-grid--dense">
+        {works.map((w) => <WorkCard work={w} />)}
+      </div>
+    </section>
+  )}
+</Base>
