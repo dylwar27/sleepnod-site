@@ -9,6 +9,7 @@ tags:
   - base
 section: Dance for Stage
 summary: Inaugural production residency at Base Arts Space.
+vimeoId: '202340237'
 vimeoPrivacy: public
 status: draft
 ---

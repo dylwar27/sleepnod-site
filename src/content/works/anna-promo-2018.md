@@ -9,7 +9,8 @@ tags:
   - collab
   - with-anna
 section: promos
-summary: 'Promotional video series with Anna. Includes ''Anna promo1'' and ''anna promo 2 no text''.'
+summary: Promotional video series with Anna. Includes 'Anna promo1' and 'anna promo 2 no text'.
+vimeoId: '296906967'
 vimeoPrivacy: public
 status: draft
 rightsNote: 'Auto-flagged: collaborator credit present (Anna). Verify rights before promoting from draft.'
