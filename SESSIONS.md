@@ -4,6 +4,55 @@ Running log of Claude Code sessions on this repo. Newest first. Each entry is a 
 
 ---
 
+## Session 06 — 2026-04-21 — Sprint close: 5 featured Works + PR to main
+
+**Goal:** Complete the sprint goal — ship a real homepage. Commit all Session 04–05 work, promote 5 Works to featured, merge branch to main.
+
+**Done — 2 commits on `feature/vault-migration-and-admin`, PR #5 open:**
+
+**Vimeo backfill commit (`4747c32`).** `scripts/backfill-vimeo.mjs` — the backfill script from Session 05 was successfully committed (had failed to land in git last session due to git env issues). 37 files: the script + 36 Works now with `vimeoId`. 27 exact matches, 7 fuzzy, 2 manual patches (`sleep-nod-reel-2018` ← 282444722, `britney` ← 1149082502). 12 Works gained `year`; 7 gained "Via Vimeo:" summary stubs.
+
+**Sprint close commit (`d8b0789`).** 12 files:
+- **5 Works promoted to featured:** ArtPG 2022 (`featuredOrder: 2`), The Lesser Evils 2017 (3), Chimera 2016 (4), Eat the Heart 2015 (5), Cold Light Day 2014 (6)
+- **6 people stubs seeded:** `anna.json`, `erin.json`, `ward-brother.json`, `baaahs.json`, `general-magic.json`, `anima-productions.json` — covering the 6 active `with-*` tags that had no people entry
+- **`RETRO.md`** added at repo root — full project retrospective covering all 5 sessions, current state inventory, gap analysis, open curator gates, prioritized next steps
+
+**PR #5 open:** [Sessions 04–05: People/Venues, Vimeo backfill, 5 featured Works](https://github.com/dylwar27/sleepnod-site/pull/5). Merges `feature/vault-migration-and-admin` → `main`. Build: 45 pages (up from 7 on main).
+
+**Note on RETRO.md Vimeo IDs:** The RETRO listed fabricated Vimeo IDs for the 5 candidates — those were wrong. The correct IDs (from the Vimeo API backfill) are what's in the `.md` files: `artpg-2022` → `697981021`, `lesser-evils-2017` → `202340237`, `chimera-2016` → `189684560`, `eat-the-heart-2015` → `1149091504`, `cold-light-day-2014` → `138280044`. RETRO.md still has the wrong numbers — worth fixing if it matters.
+
+**State at end of session:**
+- Branch: `feature/vault-migration-and-admin` at `d8b0789`
+- PR #5 open, not yet merged
+- Live on `main` still at `2f6b851` (Session 03) — won't update until PR #5 merges
+- Build: 45 pages, 6 featured Works, 63 drafts
+- Works with `vimeoId`: 36 of 69 (52%)
+- People entries: 18 (12 original + 6 new stubs)
+
+**Remaining items — immediate:**
+
+Curator work (Dyl):
+1. **Merge PR #5** — [github.com/dylwar27/sleepnod-site/pull/5](https://github.com/dylwar27/sleepnod-site/pull/5). After merge, GH Pages deploys automatically. Homepage will show 6 Works.
+2. **Review the 6 featured Works** once they're live — check Vimeo posters load, summaries make sense. Chimera's summary starts with "Via Vimeo: …" — may want to rewrite.
+3. **`sleep-nod-film` Vimeo decision** — video 153778755 "Sleep Nod" (2016) is ambiguous. If it belongs to `sleep-nod-film.md`, add `vimeoId: '153778755'` to that file.
+4. **`no-haiku` duplication** — `no-haiku.md` (featured shape-check) vs `no-haiku-2020.md` (draft from xlsx). Still unresolved.
+5. **Fix RETRO.md Vimeo IDs** if you're sharing it — see note above.
+6. **Cold Light Day rights note** — `rightsNote: "Auto-flagged: collaborator credit present (Dayna Hanson)..."`. Intentionally promoted; note stays in file for future reference.
+
+Agent-doable next:
+7. **Drop `robots.txt` Disallow** — once PR #5 merges and you've reviewed the live homepage. One-line change.
+8. **Keystatic Phase 2** — install `@keystatic/core`, `@keystatic/astro`, `@astrojs/react`. Register a GitHub App, wire OAuth. Budget 2 hours. After this, editing works from any browser without `npm run dev`.
+9. **Custom domain** — two lines in `astro.config.mjs` + `public/CNAME`. Under 30 minutes.
+10. **Fill people stubs** — `anna.json`, `erin.json`, `ward-brother.json`, `baaahs.json`, `general-magic.json`, `anima-productions.json` are minimal stubs. Fill `name`, `role`, links when you know them.
+
+**Files touched this session:**
+- `scripts/backfill-vimeo.mjs` — new (committed from Session 05 work)
+- `src/content/works/*.md` — 36 gained `vimeoId`/`vimeoPrivacy`; 5 promoted to `featured`
+- `src/content/people/anna.json`, `erin.json`, `ward-brother.json`, `baaahs.json`, `general-magic.json`, `anima-productions.json` — new stubs
+- `RETRO.md` — new
+
+---
+
 ## Session 03 — 2026-04-19/20 — dark theme, multi-platform embeds, in-browser admin editor, Vimeo token
 
 **Goal:** make `/admin` an actual lightweight CMS rather than a CSV round-trip — toggle featured/published inline, add YouTube/SoundCloud/Bandcamp embeds alongside Vimeo. Flip the site to a dark warm-off-white palette. Wire the Vimeo API token through for private/unlisted poster pulls.
