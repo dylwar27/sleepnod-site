@@ -14,7 +14,8 @@ section: Dance for Film
 summary: Dance-for-film with Dayna Hanson.
 vimeoId: '138280044'
 vimeoPrivacy: public
-status: draft
+status: featured
+featuredOrder: 6
 rightsNote: 'Auto-flagged: collaborator credit present (Dayna Hanson). Verify rights before promoting from draft.'
 ---
 

@@ -12,7 +12,8 @@ section: Dance for Stage
 summary: 'Bridge Project residency, UW + Velocity.'
 vimeoId: '1149091504'
 vimeoPrivacy: public
-status: draft
+status: featured
+featuredOrder: 5
 ---
 
 *Imported from catalog. Body pending.*
