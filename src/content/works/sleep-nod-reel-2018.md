@@ -10,6 +10,7 @@ tags:
   - self
 section: film-video
 summary: 'Dyl''s personal promotional reel for SleepNod. Special — represents the brand itself, not a single work.'
+vimeoId: '282444722'
 vimeoPrivacy: public
 status: draft
 ---

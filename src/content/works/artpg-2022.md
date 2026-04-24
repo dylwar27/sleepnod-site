@@ -9,8 +9,10 @@ tags:
   - nyc-current
 section: Dance for Stage
 summary: Choreography and original sound design.
+vimeoId: '697981021'
 vimeoPrivacy: public
-status: draft
+status: featured
+featuredOrder: 2
 ---
 
 *Imported from catalog. Body pending.*

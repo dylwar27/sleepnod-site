@@ -9,6 +9,7 @@ tags:
   - class
 section: promos
 summary: Promotional video related to Countertechnique movement practice.
+vimeoId: '238484505'
 vimeoPrivacy: public
 status: draft
 ---
